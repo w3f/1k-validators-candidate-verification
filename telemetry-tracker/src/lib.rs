@@ -1,7 +1,10 @@
 #[macro_use]
+extern crate serde;
+#[macro_use]
 extern crate anyhow;
 
-use futures::{StreamExt, SinkExt};
+use events::MessageEvent;
+use futures::{SinkExt, StreamExt};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -49,11 +52,18 @@ async fn run_listener(url: Option<&str>, chain: Option<Chain>) -> Result<()> {
     while let Some(msg) = stream.next().await {
         match msg? {
             Message::Binary(content) => {
-                println!(">> {}", String::from_utf8_lossy(&content));
+                println!("DEB: {}", String::from_utf8_lossy(&content));
+                let msgs = MessageEvent::from_json(&content)?;
+                println!(">> {:?}", msgs);
             }
-            _ => {},
+            _ => {}
         }
     }
 
     Ok(())
+}
+
+#[tokio::test]
+async fn run() {
+    run_listener(None, None).await.unwrap();
 }
