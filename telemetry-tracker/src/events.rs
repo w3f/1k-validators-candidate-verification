@@ -44,7 +44,7 @@ pub struct DownloadSpeed(Vec<BytesPerSecond>);
 
 #[derive(Debug, Clone)]
 pub enum MessageEvent {
-    AddedNode(AddedNode),
+    AddedNode(AddedNodeEvent),
 }
 
 impl MessageEvent {
@@ -66,7 +66,7 @@ impl MessageEvent {
             println!("ACTION: {}", action);
             match action {
                 3 => messages.push(MessageEvent::AddedNode(
-                    serde_json::from_value::<AddedNodeRaw>(payload)?.into(),
+                    serde_json::from_value::<AddedNodeEventRaw>(payload)?.into(),
                 )),
                 _ => {}
             }
@@ -79,7 +79,66 @@ impl MessageEvent {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct AddedNodeRaw(
+pub struct HardwareEvent {
+    node_id: NodeId,
+    hardware: NodeHardware,
+}
+
+impl From<HardwareEventRaw> for HardwareEvent {
+    fn from(val: HardwareEventRaw) -> Self {
+        let val = val.0;
+
+        HardwareEvent {
+            node_id: val.0,
+            hardware: NodeHardware {
+                upload: val.1 .0,
+                download: val.1 .1,
+                chart_stamps: val.1 .2,
+            },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct HardwareEventRaw(
+    (
+        NodeId,
+        // NodeHardware
+        (UploadSpeed, DownloadSpeed, Vec<Timestamp>),
+    ),
+);
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct NodeStatsEvent {
+    node_id: NodeId,
+    stats: NodeStats,
+}
+
+impl From<NodeStatsEventRaw> for NodeStatsEvent {
+    fn from(val: NodeStatsEventRaw) -> Self {
+        let val = val.0;
+
+        NodeStatsEvent {
+            node_id: val.0,
+            stats: NodeStats {
+                peers: val.1 .0,
+                txcount: val.1 .1,
+            },
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct NodeStatsEventRaw(
+    (
+        NodeId,
+        // NodeStats
+        (PeerCount, TransactionCount),
+    ),
+);
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AddedNodeEventRaw(
     (
         NodeId,
         // NodeDetails
@@ -112,7 +171,7 @@ pub struct AddedNodeRaw(
 );
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct AddedNode {
+pub struct AddedNodeEvent {
     /// Node identifier
     node_id: NodeId,
     /// Static details
@@ -131,11 +190,11 @@ pub struct AddedNode {
     startup_time: Option<Timestamp>,
 }
 
-impl From<AddedNodeRaw> for AddedNode {
-    fn from(val: AddedNodeRaw) -> Self {
+impl From<AddedNodeEventRaw> for AddedNodeEvent {
+    fn from(val: AddedNodeEventRaw) -> Self {
         let val = val.0;
 
-        AddedNode {
+        AddedNodeEvent {
             node_id: val.0,
             details: NodeDetails {
                 name: val.1 .0,
