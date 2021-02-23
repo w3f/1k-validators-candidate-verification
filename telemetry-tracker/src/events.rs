@@ -18,6 +18,8 @@ pub struct BlockNumber(u64);
 #[derive(Deserialize, Debug, Clone)]
 pub struct BlockHash(String);
 #[derive(Deserialize, Debug, Clone)]
+pub struct BlockTime(Milliseconds);
+#[derive(Deserialize, Debug, Clone)]
 pub struct NetworkId(String);
 #[derive(Deserialize, Debug, Clone)]
 pub struct PeerCount(usize);
@@ -35,6 +37,10 @@ pub struct Latitude(f64);
 pub struct Longitude(f64);
 #[derive(Deserialize, Debug, Clone)]
 pub struct City(String);
+#[derive(Deserialize, Debug, Clone)]
+pub struct UploadSpeed(Vec<BytesPerSecond>);
+#[derive(Deserialize, Debug, Clone)]
+pub struct DownloadSpeed(Vec<BytesPerSecond>);
 
 #[derive(Debug, Clone)]
 pub enum MessageEvent {
@@ -59,10 +65,9 @@ impl MessageEvent {
 
             println!("ACTION: {}", action);
             match action {
-                //3 => messages.push(MessageEvent::AddedNode(serde_json::from_value(payload)?)),
-                3 => {
-                    serde_json::from_value::<AddedNodeRaw>(payload)?;
-                }
+                3 => messages.push(MessageEvent::AddedNode(
+                    serde_json::from_value::<AddedNodeRaw>(payload)?.into(),
+                )),
                 _ => {}
             }
 
@@ -90,12 +95,12 @@ pub struct AddedNodeRaw(
         // NodeIO
         Vec<Vec<f64>>,
         // NodeHardware
-        (Vec<BytesPerSecond>, Vec<BytesPerSecond>, Vec<Timestamp>),
+        (UploadSpeed, DownloadSpeed, Vec<Timestamp>),
         // BlockDetails
         (
             BlockNumber,
             BlockHash,
-            Milliseconds,
+            BlockTime,
             Timestamp,
             Option<PropagationTime>,
         ),
@@ -126,43 +131,75 @@ pub struct AddedNode {
     startup_time: Option<Timestamp>,
 }
 
+impl From<AddedNodeRaw> for AddedNode {
+    fn from(val: AddedNodeRaw) -> Self {
+        let val = val.0;
+
+        AddedNode {
+            node_id: val.0,
+            details: NodeDetails {
+                name: val.1 .0,
+                implementation: val.1 .1,
+                version: val.1 .2,
+                address: val.1 .3,
+                network_id: val.1 .4,
+            },
+            stats: NodeStats {
+                peers: val.2 .0,
+                txcount: val.2 .1,
+            },
+            io: NodeIO {
+                used_state_cache_size: val.3.get(0).unwrap_or(&vec![]).clone(),
+            },
+            hardware: NodeHardware {
+                upload: val.4 .0,
+                download: val.4 .1,
+                chart_stamps: val.4 .2,
+            },
+            best: BlockDetails {
+                block_number: val.5 .0,
+                block_hash: val.5 .1,
+                block_time: val.5 .2,
+                block_timestamp: val.5 .3,
+                propagation_time: val.5 .4,
+            },
+            location: val.6.map(|val| NodeLocation {
+                latitude: val.0,
+                longitude: val.1,
+                city: val.2,
+            }),
+            startup_time: val.7,
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct NodeDetails {
-    pub chain: Box<str>,
-    pub name: Box<str>,
-    pub implementation: Box<str>,
-    pub version: Box<str>,
-    pub validator: Option<Box<str>>,
-    pub network_id: Option<Box<str>>,
-    pub startup_time: Option<Box<str>>,
+    pub name: NodeName,
+    pub implementation: NodeImplementation,
+    pub version: NodeVersion,
+    pub address: Option<Address>,
+    pub network_id: Option<NetworkId>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NodeStats {
-    pub peers: u64,
-    pub txcount: u64,
+    pub peers: PeerCount,
+    pub txcount: TransactionCount,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NodeIO {
-    pub used_state_cache_size: MeanList<f32>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct MeanList<T> {
-    period_sum: T,
-    period_count: u8,
-    mean_index: u8,
-    means: [T; 20],
-    ticks_per_mean: u8,
+    pub used_state_cache_size: Vec<f64>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct BlockDetails {
-    pub block: Block,
-    pub block_time: u64,
-    pub block_timestamp: u64,
-    pub propagation_time: Option<u64>,
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
+    pub block_time: BlockTime,
+    pub block_timestamp: Timestamp,
+    pub propagation_time: Option<PropagationTime>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -175,16 +212,16 @@ pub struct Block {
 #[derive(Deserialize, Debug, Clone)]
 pub struct NodeHardware {
     /// Upload uses means
-    pub upload: MeanList<f64>,
+    pub upload: UploadSpeed,
     /// Download uses means
-    pub download: MeanList<f64>,
+    pub download: DownloadSpeed,
     /// Stampchange uses means
-    pub chart_stamps: MeanList<f64>,
+    pub chart_stamps: Vec<Timestamp>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NodeLocation {
-    pub latitude: f32,
-    pub longitude: f32,
-    pub city: Box<str>,
+    pub latitude: Latitude,
+    pub longitude: Longitude,
+    pub city: City,
 }
