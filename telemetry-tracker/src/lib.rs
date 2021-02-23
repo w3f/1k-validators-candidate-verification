@@ -52,7 +52,6 @@ async fn run_listener(url: Option<&str>, chain: Option<Chain>) -> Result<()> {
     while let Some(msg) = stream.next().await {
         match msg? {
             Message::Binary(content) => {
-                println!("DEB: {}", String::from_utf8_lossy(&content));
                 let msgs = MessageEvent::from_json(&content)?;
                 println!(">> {:?}", msgs);
             }

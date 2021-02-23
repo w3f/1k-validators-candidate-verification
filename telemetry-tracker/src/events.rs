@@ -45,6 +45,8 @@ pub struct DownloadSpeed(Vec<BytesPerSecond>);
 #[derive(Debug, Clone)]
 pub enum MessageEvent {
     AddedNode(AddedNodeEvent),
+    Hardware(HardwareEvent),
+    NodeStats(NodeStatsEvent),
 }
 
 impl MessageEvent {
@@ -56,7 +58,7 @@ impl MessageEvent {
             return Err(anyhow!("invalid JSON data"));
         }
 
-        let mut messages = vec![];
+        let mut events = vec![];
 
         while index < parsed.len() - 1 {
             let action = serde_json::from_value(parsed[index].clone())?;
@@ -64,17 +66,25 @@ impl MessageEvent {
             let payload = parsed[index].clone();
 
             println!("ACTION: {}", action);
-            match action {
-                3 => messages.push(MessageEvent::AddedNode(
+            if let Some(event) = match action {
+                3 => Some(MessageEvent::AddedNode(
                     serde_json::from_value::<AddedNodeEventRaw>(payload)?.into(),
                 )),
-                _ => {}
+                8 => Some(MessageEvent::NodeStats(
+                    serde_json::from_value::<NodeStatsEventRaw>(payload)?.into(),
+                )),
+                9 => Some(MessageEvent::Hardware(
+                    serde_json::from_value::<HardwareEventRaw>(payload)?.into(),
+                )),
+                _ => None,
+            } {
+                events.push(event)
             }
 
             index += 1;
         }
 
-        Ok(messages)
+        Ok(events)
     }
 }
 
