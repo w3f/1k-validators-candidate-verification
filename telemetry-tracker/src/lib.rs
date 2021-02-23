@@ -9,6 +9,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 mod events;
+mod state;
 
 const DEFAULT_TELEMETRY: &'static str = "wss://telemetry-backend.w3f.community/feed";
 

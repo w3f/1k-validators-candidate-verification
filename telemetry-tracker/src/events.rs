@@ -42,7 +42,9 @@ pub struct UploadSpeed(Vec<BytesPerSecond>);
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct DownloadSpeed(Vec<BytesPerSecond>);
 
-#[derive(Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
+#[serde(tag = "type", content = "content")]
+#[serde(rename_all = "snake_case")]
 pub enum MessageEvent {
     AddedNode(AddedNodeEvent),
     Hardware(HardwareEvent),
@@ -65,7 +67,6 @@ impl MessageEvent {
             index += 1;
             let payload = parsed[index].clone();
 
-            println!("ACTION: {}", action);
             if let Some(event) = match action {
                 3 => Some(MessageEvent::AddedNode(
                     serde_json::from_value::<AddedNodeEventRaw>(payload)?.into(),
