@@ -1,6 +1,6 @@
 use crate::events::{MessageEvent, NodeId, NodeName};
 use crate::state::{LogTimestamp, NodeInfo};
-use crate::Result;
+use crate::{Result, ToBson};
 use mongodb::{Client, Collection, Database};
 use tokio_tungstenite::tungstenite::Message;
 
@@ -29,19 +29,19 @@ pub struct TelemetryEventStore {
 
 impl TelemetryEventStore {
     async fn insert_node_info(&self, node_id: &NodeId, node_name: &NodeName) -> Result<()> {
-        /*
-        self.coll.update_one(
-            doc!{
-                "node_id": node_id,
-            },
-            doc! {
-                "$set": {
-                    "node_id": node_id,
-                }
-            },
-            None)
+        self.coll
+            .update_one(
+                doc! {
+                    "node_id": node_id.to_bson()?,
+                },
+                doc! {
+                    "$set": {
+                        "node_id": node_id.to_bson()?,
+                    }
+                },
+                None,
+            )
             .await?;
-        */
 
         Ok(())
     }
