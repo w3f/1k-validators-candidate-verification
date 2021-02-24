@@ -31,8 +31,11 @@ pub struct TelemetryEventStore {
 }
 
 impl TelemetryEventStore {
+    #[cfg(test)]
+    async fn drop(&self) {
+        self.coll.drop(None).await.unwrap();
+    }
     async fn insert_node_info(&self, node_id: &NodeId, node_name: Option<&NodeName>) -> Result<()> {
-        println!("HERE");
         self.coll
             .update_one(
                 doc! {
@@ -48,7 +51,6 @@ impl TelemetryEventStore {
                 }),
             )
             .await?;
-        println!("DONE");
 
         Ok(())
     }
@@ -64,7 +66,9 @@ impl TelemetryEventStore {
                     "node_id": node_id.to_bson()?,
                 },
                 doc! {
-                    "last_event_lot": LogTimestamp::new().to_bson()?,
+                    "$set": {
+                        "last_event_lot": LogTimestamp::new().to_bson()?,
+                    },
                     "$push": {
                         "event_logs": EventLog {
                             timestamp: LogTimestamp::new(),
@@ -83,7 +87,7 @@ impl TelemetryEventStore {
             .coll
             .find(
                 doc! {
-                    "name": name.to_bson()?,
+                    "node_name": name.to_bson()?,
                 },
                 None,
             )
@@ -96,23 +100,21 @@ impl TelemetryEventStore {
 
         Ok(entries)
     }
-    pub async fn get_info_by_id(&self, node_id: &NodeId) -> Result<Vec<NodeInfo>> {
-        let mut cursor = self
+    pub async fn get_info_by_id(&self, node_id: &NodeId) -> Result<Option<NodeInfo>> {
+        if let Some(doc) = self
             .coll
-            .find(
+            .find_one(
                 doc! {
-                    "id": node_id.to_bson()?,
+                    "node_id": node_id.to_bson()?,
                 },
                 None,
             )
-            .await?;
-
-        let mut entries = vec![];
-        while let Some(doc) = cursor.next().await {
-            entries.push(from_document(doc?)?);
+            .await?
+        {
+            Ok(Some(from_document(doc)?))
+        } else {
+            Ok(None)
         }
-
-        Ok(entries)
     }
 }
 
@@ -123,25 +125,64 @@ mod tests {
 
     #[tokio::test]
     async fn store_event() {
+        // Create client.
         let client = MongoClient::new("mongodb://localhost:27017/", "test_db")
             .await
             .unwrap()
             .get_telemetry_event_store();
 
-        let events = [
-            MessageEvent::TestMessage(NodeId::from(1), "Event A".to_string()),
-            MessageEvent::TestMessage(NodeId::from(1), "Event B".to_string()),
-            MessageEvent::TestMessage(NodeId::from(2), "Event C".to_string()),
-            MessageEvent::TestMessage(NodeId::from(3), "Event D".to_string()),
-            MessageEvent::TestMessage(NodeId::from(3), "Event E".to_string()),
+        client.drop().await;
+
+        // Prepare data
+        let node_1 = NodeId::from(1);
+        let node_2 = NodeId::from(2);
+        let node_3 = NodeId::from(3);
+
+        let node_1_events = [
+            MessageEvent::TestMessage(node_1.clone(), "Event A".to_string()),
+            MessageEvent::TestMessage(node_1.clone(), "Event B".to_string()),
         ];
 
-        for event in events.iter() {
+        let node_2_events = [MessageEvent::TestMessage(
+            node_2.clone(),
+            "Event C".to_string(),
+        )];
+
+        let node_3_events = [
+            MessageEvent::TestMessage(node_3.clone(), "Event D".to_string()),
+            MessageEvent::TestMessage(node_3.clone(), "Event E".to_string()),
+        ];
+
+        // Store all events
+        for event in node_1_events
+            .iter()
+            .chain(node_2_events.iter())
+            .chain(node_3_events.iter())
+        {
             client.store_event(event.clone()).await.unwrap();
         }
 
-        let stored = client.get_info_by_id(&NodeId::from(1)).await.unwrap();
-        assert_eq!(stored.len(), 2);
+        // NodeId 1
+        let stored = client.get_info_by_id(&node_1).await.unwrap().unwrap();
+        assert_eq!(stored.event_logs.len(), node_1_events.len());
+        for (log, expected) in stored.event_logs.iter().zip(node_1_events.iter()) {
+            assert_eq!(&log.event, expected);
+        }
 
+        // NodeId 2
+        let stored = client.get_info_by_id(&node_2).await.unwrap().unwrap();
+        assert_eq!(stored.event_logs.len(), node_2_events.len());
+        for (log, expected) in stored.event_logs.iter().zip(node_2_events.iter()) {
+            assert_eq!(&log.event, expected);
+        }
+
+        // NodeId 3
+        let stored = client.get_info_by_id(&node_3).await.unwrap().unwrap();
+        assert_eq!(stored.event_logs.len(), node_3_events.len());
+        for (log, expected) in stored.event_logs.iter().zip(node_3_events.iter()) {
+            assert_eq!(&log.event, expected);
+        }
+
+        client.drop().await;
     }
 }

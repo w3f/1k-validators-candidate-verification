@@ -5,8 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct RegisteredStash;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredController;
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct LogTimestamp(u64);
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct LogTimestamp(i64);
 
 impl LogTimestamp {
     pub fn new() -> Self {
@@ -14,15 +14,15 @@ impl LogTimestamp {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
-                .as_secs(),
+                .as_secs() as i64,
         )
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeInfo {
-    pub id: NodeId,
-    pub name: Option<NodeName>,
+    pub node_id: NodeId,
+    pub node_name: Option<NodeName>,
     pub stash: Option<RegisteredStash>,
     pub controller: Option<RegisteredController>,
     pub last_event_log: LogTimestamp,
@@ -32,8 +32,8 @@ pub struct NodeInfo {
 impl NodeInfo {
     pub fn new(id: NodeId, name: Option<NodeName>) -> Self {
         NodeInfo {
-            id: id,
-            name: name,
+            node_id: id,
+            node_name: name,
             stash: None,
             controller: None,
             last_event_log: LogTimestamp::new(),
@@ -42,7 +42,7 @@ impl NodeInfo {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct EventLog {
     pub timestamp: LogTimestamp,
     pub event: MessageEvent,

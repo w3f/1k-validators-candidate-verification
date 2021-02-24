@@ -1,56 +1,56 @@
 use super::Result;
 use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NodeId(u64);
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct NodeId(i64);
 
 #[cfg(test)]
-impl From<u64> for NodeId {
-    fn from(val: u64) -> Self {
+impl From<i64> for NodeId {
+    fn from(val: i64) -> Self {
         NodeId(val)
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeName(String);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeImplementation(String);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeVersion(String);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Address(String);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Timestamp(f64);
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct BlockNumber(u64);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct BlockNumber(i64);
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BlockHash(String);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BlockTime(Milliseconds);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NetworkId(String);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PeerCount(usize);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TransactionCount(usize);
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Milliseconds(u64);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Milliseconds(i64);
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PropagationTime(Milliseconds);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BytesPerSecond(f64);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Latitude(f64);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Longitude(f64);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct City(String);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct UploadSpeed(Vec<BytesPerSecond>);
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DownloadSpeed(Vec<BytesPerSecond>);
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content")]
 #[serde(rename_all = "snake_case")]
 pub enum MessageEvent {
@@ -117,7 +117,7 @@ impl MessageEvent {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct HardwareEvent {
     node_id: NodeId,
     hardware: NodeHardware,
@@ -138,7 +138,7 @@ impl From<HardwareEventRaw> for HardwareEvent {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct HardwareEventRaw(
     (
         NodeId,
@@ -147,7 +147,7 @@ pub struct HardwareEventRaw(
     ),
 );
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeStatsEvent {
     node_id: NodeId,
     stats: NodeStats,
@@ -167,7 +167,7 @@ impl From<NodeStatsEventRaw> for NodeStatsEvent {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeStatsEventRaw(
     (
         NodeId,
@@ -176,7 +176,7 @@ pub struct NodeStatsEventRaw(
     ),
 );
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct AddedNodeEventRaw(
     (
         NodeId,
@@ -209,7 +209,7 @@ pub struct AddedNodeEventRaw(
     ),
 );
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct AddedNodeEvent {
     /// Node identifier
     node_id: NodeId,
@@ -271,7 +271,7 @@ impl From<AddedNodeEventRaw> for AddedNodeEvent {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeDetails {
     pub name: NodeName,
     pub implementation: NodeImplementation,
@@ -280,18 +280,18 @@ pub struct NodeDetails {
     pub network_id: Option<NetworkId>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeStats {
     pub peers: PeerCount,
     pub txcount: TransactionCount,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeIO {
     pub used_state_cache_size: Vec<f64>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BlockDetails {
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,
@@ -300,14 +300,14 @@ pub struct BlockDetails {
     pub propagation_time: Option<PropagationTime>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Block {
     #[serde(rename = "best")]
     pub hash: BlockHash,
     pub height: BlockNumber,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeHardware {
     /// Upload uses means
     pub upload: UploadSpeed,
@@ -317,7 +317,7 @@ pub struct NodeHardware {
     pub chart_stamps: Vec<Timestamp>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeLocation {
     pub latitude: Latitude,
     pub longitude: Longitude,
