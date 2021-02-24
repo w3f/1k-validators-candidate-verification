@@ -9,7 +9,7 @@ pub struct RegisteredController;
 pub struct LogTimestamp(u64);
 
 impl LogTimestamp {
-    fn new() -> Self {
+    pub fn new() -> Self {
         LogTimestamp(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -21,16 +21,27 @@ impl LogTimestamp {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeInfo {
-    node_id: NodeId,
-    node_name: NodeName,
-    stash: Option<RegisteredStash>,
-    controller: Option<RegisteredController>,
-    last_event_log: LogTimestamp,
-    event_logs: Vec<EventLog>,
+    pub node_id: NodeId,
+    pub stash: Option<RegisteredStash>,
+    pub controller: Option<RegisteredController>,
+    pub last_event_log: LogTimestamp,
+    pub event_logs: Vec<EventLog>,
+}
+
+impl NodeInfo {
+    pub fn from_node_id(id: NodeId) -> Self {
+        NodeInfo {
+            node_id: id,
+            stash: None,
+            controller: None,
+            last_event_log: LogTimestamp::new(),
+            event_logs: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EventLog {
-    timestamp: LogTimestamp,
-    event: MessageEvent,
+    pub timestamp: LogTimestamp,
+    pub event: MessageEvent,
 }
