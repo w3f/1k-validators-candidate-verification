@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate anyhow;
+
 use bson::ser::to_bson;
 use bson::Bson;
 use serde::Serialize;
