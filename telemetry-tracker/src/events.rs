@@ -3,6 +3,14 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeId(u64);
+
+#[cfg(test)]
+impl From<u64> for NodeId {
+    fn from(val: u64) -> Self {
+        NodeId(val)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeName(String);
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -49,6 +57,8 @@ pub enum MessageEvent {
     AddedNode(AddedNodeEvent),
     Hardware(HardwareEvent),
     NodeStats(NodeStatsEvent),
+    #[cfg(test)]
+    TestMessage(NodeId, String),
 }
 
 impl MessageEvent {
@@ -57,6 +67,14 @@ impl MessageEvent {
             MessageEvent::AddedNode(event) => &event.node_id,
             MessageEvent::Hardware(event) => &event.node_id,
             MessageEvent::NodeStats(event) => &event.node_id,
+            #[cfg(test)]
+            MessageEvent::TestMessage(node_id, _) => node_id,
+        }
+    }
+    pub fn node_name(&self) -> Option<&NodeName> {
+        match self {
+            MessageEvent::AddedNode(event) => Some(&event.details.name),
+            _ => None,
         }
     }
 }

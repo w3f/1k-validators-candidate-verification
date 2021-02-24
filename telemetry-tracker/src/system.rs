@@ -20,12 +20,6 @@ impl AsRef<str> for Chain {
     }
 }
 
-impl Default for Chain {
-    fn default() -> Self {
-        Chain::Polkadot
-    }
-}
-
 pub struct TelemetryWatcherConfig {
     enabled: bool,
     uri: String,
@@ -88,4 +82,35 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
     });
 
     Ok(())
+}
+
+#[tokio::test]
+async fn telemetry() {
+    let (mut stream, _) = connect_async("wss://telemetry-backend.w3f.community/feed")
+        .await
+        .unwrap();
+
+    // Subscribe to specified chain.
+    stream
+        .send(Message::text(format!(
+            "subscribe:{}",
+            Chain::Polkadot.as_ref()
+        )))
+        .await
+        .unwrap();
+
+    while let Some(msg) = stream.next().await {
+        match msg.unwrap() {
+            Message::Binary(content) => {
+                if let Ok(events) = MessageEvent::from_json(&content) {
+                    for event in events {
+                        println!("\n\n{}", serde_json::to_string(&event).unwrap());
+                    }
+                } else {
+                    error!("Failed to deserialize telemetry event");
+                }
+            }
+            _ => {}
+        }
+    }
 }

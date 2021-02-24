@@ -1,6 +1,8 @@
 use crate::events::{MessageEvent, NodeId, NodeName};
 use crate::state::{EventLog, LogTimestamp, NodeInfo};
 use crate::{Result, ToBson};
+use bson::{from_document, Document};
+use futures::{StreamExt, TryStreamExt};
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
 use tokio_tungstenite::tungstenite::Message;
@@ -29,17 +31,14 @@ pub struct TelemetryEventStore {
 }
 
 impl TelemetryEventStore {
-    async fn insert_node_info(&self, node_id: &NodeId) -> Result<()> {
+    async fn insert_node_info(&self, node_id: &NodeId, node_name: Option<&NodeName>) -> Result<()> {
         self.coll
             .update_one(
                 doc! {
                     "node_id": node_id.to_bson()?,
                 },
                 doc! {
-                    "$set": {
-                        "last_event_log": LogTimestamp::new().to_bson()?,
-                    },
-                    "$setOnInsert": NodeInfo::from_node_id(node_id.clone()).to_bson()?,
+                    "$setOnInsert": NodeInfo::new(node_id.clone(), node_name.map(|n| n.clone())).to_bson()?,
                 },
                 Some({
                     let mut options = UpdateOptions::default();
@@ -53,7 +52,9 @@ impl TelemetryEventStore {
     }
     pub async fn store_event(&self, event: MessageEvent) -> Result<()> {
         let node_id = event.node_id();
-        self.insert_node_info(node_id).await?;
+        let node_name = event.node_name();
+
+        self.insert_node_info(node_id, node_name).await?;
 
         self.coll
             .update_one(
@@ -61,6 +62,7 @@ impl TelemetryEventStore {
                     "node_id": node_id.to_bson()?,
                 },
                 doc! {
+                    "last_event_lot": LogTimestamp::new().to_bson()?,
                     "$push": {
                         "event_logs": EventLog {
                             timestamp: LogTimestamp::new(),
@@ -73,5 +75,49 @@ impl TelemetryEventStore {
             .await?;
 
         Ok(())
+    }
+    pub async fn get_info_by_name(&self, name: &NodeName) -> Result<Vec<NodeInfo>> {
+        let mut cursor = self
+            .coll
+            .find(
+                doc! {
+                    "name": name.to_bson()?,
+                },
+                None,
+            )
+            .await?;
+
+        let mut entries = vec![];
+        while let Some(doc) = cursor.next().await {
+            entries.push(from_document(doc?)?);
+        }
+
+        Ok(entries)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::events::{MessageEvent, NodeId};
+
+    #[tokio::test]
+    async fn store_event() {
+        let client = MongoClient::new("mongodb://localhost:27017/", "test_db")
+            .await
+            .unwrap()
+            .get_telemetry_event_store();
+
+        let events = [
+            MessageEvent::TestMessage(NodeId::from(1), "Event A".to_string()),
+            MessageEvent::TestMessage(NodeId::from(1), "Event B".to_string()),
+            MessageEvent::TestMessage(NodeId::from(2), "Event C".to_string()),
+            MessageEvent::TestMessage(NodeId::from(3), "Event D".to_string()),
+            MessageEvent::TestMessage(NodeId::from(3), "Event E".to_string()),
+        ];
+
+        for event in events.iter() {
+            client.store_event(event.clone()).await.unwrap();
+        }
     }
 }

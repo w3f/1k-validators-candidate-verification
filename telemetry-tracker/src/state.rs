@@ -21,7 +21,8 @@ impl LogTimestamp {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeInfo {
-    pub node_id: NodeId,
+    pub id: NodeId,
+    pub name: Option<NodeName>,
     pub stash: Option<RegisteredStash>,
     pub controller: Option<RegisteredController>,
     pub last_event_log: LogTimestamp,
@@ -29,9 +30,10 @@ pub struct NodeInfo {
 }
 
 impl NodeInfo {
-    pub fn from_node_id(id: NodeId) -> Self {
+    pub fn new(id: NodeId, name: Option<NodeName>) -> Self {
         NodeInfo {
-            node_id: id,
+            id: id,
+            name: name,
             stash: None,
             controller: None,
             last_event_log: LogTimestamp::new(),

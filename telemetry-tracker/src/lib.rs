@@ -7,7 +7,11 @@ extern crate anyhow;
 #[macro_use]
 extern crate bson;
 
-use bson::Bson;
+use bson::de::from_document;
+use bson::ser::to_bson;
+use bson::{Bson, Document};
+use serde::de::{Deserialize, DeserializeOwned};
+use serde::ser::Serialize;
 use std::convert::TryInto;
 
 mod client;
@@ -23,8 +27,8 @@ trait ToBson {
     fn to_bson(&self) -> Result<Bson>;
 }
 
-impl<T: serde::Serialize> ToBson for T {
+impl<T: Serialize> ToBson for T {
     fn to_bson(&self) -> Result<Bson> {
-        Ok(serde_json::to_value(self)?.try_into()?)
+        Ok(to_bson(self)?)
     }
 }
