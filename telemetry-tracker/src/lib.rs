@@ -10,6 +10,8 @@ use futures::{SinkExt, StreamExt};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
+#[macro_use]
+mod primitives_macro;
 mod client;
 mod events;
 mod state;

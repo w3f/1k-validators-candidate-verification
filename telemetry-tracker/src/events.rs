@@ -1,6 +1,10 @@
 use super::Result;
 use serde_json::Value;
 
+primitives! {
+    SomeThing(u64),
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeId(u64);
 #[derive(Debug, Clone, Deserialize, Serialize)]
