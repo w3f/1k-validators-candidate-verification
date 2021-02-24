@@ -32,6 +32,7 @@ pub struct TelemetryEventStore {
 
 impl TelemetryEventStore {
     async fn insert_node_info(&self, node_id: &NodeId, node_name: Option<&NodeName>) -> Result<()> {
+        println!("HERE");
         self.coll
             .update_one(
                 doc! {
@@ -47,6 +48,7 @@ impl TelemetryEventStore {
                 }),
             )
             .await?;
+        println!("DONE");
 
         Ok(())
     }
@@ -94,6 +96,24 @@ impl TelemetryEventStore {
 
         Ok(entries)
     }
+    pub async fn get_info_by_id(&self, node_id: &NodeId) -> Result<Vec<NodeInfo>> {
+        let mut cursor = self
+            .coll
+            .find(
+                doc! {
+                    "id": node_id.to_bson()?,
+                },
+                None,
+            )
+            .await?;
+
+        let mut entries = vec![];
+        while let Some(doc) = cursor.next().await {
+            entries.push(from_document(doc?)?);
+        }
+
+        Ok(entries)
+    }
 }
 
 #[cfg(test)]
@@ -119,5 +139,9 @@ mod tests {
         for event in events.iter() {
             client.store_event(event.clone()).await.unwrap();
         }
+
+        let stored = client.get_info_by_id(&NodeId::from(1)).await.unwrap();
+        assert_eq!(stored.len(), 2);
+
     }
 }
