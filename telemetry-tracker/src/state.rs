@@ -1,23 +1,35 @@
 use crate::events::{MessageEvent, NodeId, NodeName};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredStash;
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredController;
-#[derive(Deserialize, Debug, Clone)]
-pub struct LogTimestamp;
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LogTimestamp(u64);
 
-#[derive(Deserialize, Debug, Clone)]
+impl LogTimestamp {
+    fn new() -> Self {
+        LogTimestamp(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs(),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeInfo {
     node_id: NodeId,
-    name: NodeName,
+    node_name: NodeName,
     stash: Option<RegisteredStash>,
     controller: Option<RegisteredController>,
     last_event_log: LogTimestamp,
     event_logs: Vec<EventLog>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EventLog {
     timestamp: LogTimestamp,
     event: MessageEvent,

@@ -1,28 +1,51 @@
+use crate::events::{MessageEvent, NodeId, NodeName};
+use crate::state::{LogTimestamp, NodeInfo};
 use crate::Result;
-use crate::events::MessageEvent;
-use mongodb::Client;
+use mongodb::{Client, Collection, Database};
 use tokio_tungstenite::tungstenite::Message;
 
+const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
+
 pub struct MongoClient {
-    client: Client,
+    db: Database,
 }
 
 impl MongoClient {
-    async fn new(uri: &str) -> Result<Self> {
+    async fn new(uri: &str, db: &str) -> Result<Self> {
         Ok(MongoClient {
-            client: Client::with_uri_str(uri).await?,
+            db: Client::with_uri_str(uri).await?.database(db),
         })
+    }
+    fn get_telemetry_event_store(&self) -> TelemetryEventStore {
+        TelemetryEventStore {
+            coll: self.db.collection(TELEMETRY_EVENT_STORE_COLLECTION),
+        }
     }
 }
 
-#[async_trait]
-pub trait StoreTelemetryEvents {
-    async fn store_event(event: MessageEvent) -> Result<()>;
+pub struct TelemetryEventStore {
+    coll: Collection,
 }
 
-#[async_trait]
-impl StoreTelemetryEvents for MongoClient {
-    async fn store_event(event: MessageEvent) -> Result<()> {
+impl TelemetryEventStore {
+    async fn insert_node_info(&self, node_id: &NodeId, node_name: &NodeName) -> Result<()> {
+        /*
+        self.coll.update_one(
+            doc!{
+                "node_id": node_id,
+            },
+            doc! {
+                "$set": {
+                    "node_id": node_id,
+                }
+            },
+            None)
+            .await?;
+        */
+
+        Ok(())
+    }
+    async fn store_event(&self, event: MessageEvent) -> Result<()> {
         unreachable!()
     }
 }
