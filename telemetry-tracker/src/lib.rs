@@ -2,12 +2,15 @@
 extern crate serde;
 #[macro_use]
 extern crate anyhow;
+#[macro_use]
+extern crate async_trait;
 
 use events::MessageEvent;
 use futures::{SinkExt, StreamExt};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
+mod client;
 mod events;
 mod state;
 

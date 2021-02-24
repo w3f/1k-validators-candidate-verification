@@ -1,4 +1,4 @@
-use crate::events::{NodeId, NodeName, MessageEvent};
+use crate::events::{MessageEvent, NodeId, NodeName};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct RegisteredStash;
@@ -13,21 +13,8 @@ pub struct NodeInfo {
     name: NodeName,
     stash: Option<RegisteredStash>,
     controller: Option<RegisteredController>,
-    last_event: LogTimestamp,
-    edit_logs: Vec<EditorLog>,
+    last_event_log: LogTimestamp,
     event_logs: Vec<EventLog>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct EditorLog {
-    editor_task: EditorTask,
-    timestamp: LogTimestamp,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum EditorTask {
-    TelemetryWatcher,
 }
 
 #[derive(Deserialize, Debug, Clone)]
