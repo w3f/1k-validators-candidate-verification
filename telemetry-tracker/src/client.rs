@@ -133,7 +133,7 @@ mod tests {
 
         client.drop().await;
 
-        // Prepare data
+        // Prepare events.
         let node_1 = NodeId::from(1);
         let node_2 = NodeId::from(2);
         let node_3 = NodeId::from(3);
@@ -153,7 +153,7 @@ mod tests {
             MessageEvent::TestMessage(node_3.clone(), "Event E".to_string()),
         ];
 
-        // Store all events
+        // Store all events.
         for event in node_1_events
             .iter()
             .chain(node_2_events.iter())
@@ -162,24 +162,48 @@ mod tests {
             client.store_event(event.clone()).await.unwrap();
         }
 
-        // NodeId 1
+        // Check NodeId 1.
         let stored = client.get_info_by_id(&node_1).await.unwrap().unwrap();
         assert_eq!(stored.event_logs.len(), node_1_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_1_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
-        // NodeId 2
+        // Check NodeId 2.
         let stored = client.get_info_by_id(&node_2).await.unwrap().unwrap();
         assert_eq!(stored.event_logs.len(), node_2_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_2_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
-        // NodeId 3
+        // Check NodeId 3.
         let stored = client.get_info_by_id(&node_3).await.unwrap().unwrap();
         assert_eq!(stored.event_logs.len(), node_3_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_3_events.iter()) {
+            assert_eq!(&log.event, expected);
+        }
+
+        //Add new events.
+        let node_1_events_new = [
+            MessageEvent::TestMessage(node_1.clone(), "Event F".to_string()),
+            MessageEvent::TestMessage(node_1.clone(), "Event G".to_string()),
+        ];
+
+        for event in node_1_events_new.iter() {
+            client.store_event(event.clone()).await.unwrap();
+        }
+
+        // Check NodeId 1.
+        let stored = client.get_info_by_id(&node_1).await.unwrap().unwrap();
+        assert_eq!(
+            stored.event_logs.len(),
+            node_1_events.len() + node_1_events_new.len()
+        );
+        for (log, expected) in stored
+            .event_logs
+            .iter()
+            .zip(node_1_events.iter().chain(node_1_events_new.iter()))
+        {
             assert_eq!(&log.event, expected);
         }
 
