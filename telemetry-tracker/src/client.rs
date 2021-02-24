@@ -12,12 +12,12 @@ pub struct MongoClient {
 }
 
 impl MongoClient {
-    async fn new(uri: &str, db: &str) -> Result<Self> {
+    pub async fn new(uri: &str, db: &str) -> Result<Self> {
         Ok(MongoClient {
             db: Client::with_uri_str(uri).await?.database(db),
         })
     }
-    fn get_telemetry_event_store(&self) -> TelemetryEventStore {
+    pub fn get_telemetry_event_store(&self) -> TelemetryEventStore {
         TelemetryEventStore {
             coll: self.db.collection(TELEMETRY_EVENT_STORE_COLLECTION),
         }
@@ -51,12 +51,12 @@ impl TelemetryEventStore {
 
         Ok(())
     }
-    async fn store_event(&self, event: MessageEvent) -> Result<()> {
+    pub async fn store_event(&self, event: MessageEvent) -> Result<()> {
         let node_id = event.node_id();
         self.insert_node_info(node_id).await?;
 
         self.coll
-            .update_many(
+            .update_one(
                 doc! {
                     "node_id": node_id.to_bson()?,
                 },
