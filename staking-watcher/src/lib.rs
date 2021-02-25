@@ -7,7 +7,7 @@ use chaindata::ChainData;
 use chaindata::StashAccount;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use substrate_subxt::{sp_core::crypto::AccountId32, sp_runtime::print};
+use substrate_subxt::sp_core::crypto::{AccountId32, Ss58AddressFormat, Ss58Codec};
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime, Runtime};
 
 mod chaindata;
@@ -43,14 +43,29 @@ async fn run_candidate_check<R: Runtime>(
     let chaindata = ChainData::<DefaultNodeRuntime>::new(chain_data_hostname).await?;
     let candidates = CandidateEndpoint::fetch_from_endpoint(candidate_hostname).await?;
 
-    let ledgers = chaindata
+    println!("Fetching data");
+    let mut ledgers = chaindata
         .fetch_staking_ledgers_by_stashes(&candidates.list_stashes(), None)
         .await?;
+
+    ledgers.sort_by(|a, b| {
+        b.claimed_rewards
+            .last()
+            .unwrap_or(&0)
+            .partial_cmp(a.claimed_rewards.last().unwrap_or(&0))
+            .unwrap()
+    });
+
+    println!("Stash,Name,Last claimed (Era)");
     for ledger in ledgers {
-        println!("\n");
-        println!("Stash: {}", ledger.stash);
         println!(
-            "Last claimed reward (Era): {}",
+            "{},{},{}",
+            ledger
+                .stash
+                .to_ss58check_with_version(Ss58AddressFormat::PolkadotAccount),
+            candidates
+                .get_name(&StashAccount::from(ledger.stash.clone()))
+                .unwrap_or("N/A"),
             ledger.claimed_rewards.last().unwrap_or(&0)
         );
     }
@@ -100,7 +115,7 @@ pub struct Candidate {
 #[tokio::test]
 async fn test_run_candidate_check() {
     run_candidate_check::<DefaultNodeRuntime>(
-        "rpc.polkadot.parity",
+        "wss://rpc.polkadot.io",
         "https://polkadot.w3f.community/candidates",
     )
     .await

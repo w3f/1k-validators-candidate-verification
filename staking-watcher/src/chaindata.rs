@@ -1,7 +1,9 @@
 use crate::Result;
 use std::{convert::TryFrom, vec};
 use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
-use substrate_subxt::staking::{LedgerStoreExt, NominatorsStoreExt, Staking, StakingLedger};
+use substrate_subxt::staking::{
+    BondedStoreExt, LedgerStoreExt, NominatorsStoreExt, Staking, StakingLedger,
+};
 use substrate_subxt::system::System;
 use substrate_subxt::{Client, ClientBuilder, DefaultNodeRuntime, Runtime};
 
@@ -11,6 +13,12 @@ pub struct StashAccount<T>(T);
 impl<T> StashAccount<T> {
     fn raw(&self) -> &T {
         &self.0
+    }
+}
+
+impl From<AccountId32> for StashAccount<AccountId32> {
+    fn from(val: AccountId32) -> Self {
+        StashAccount(val)
     }
 }
 
@@ -26,12 +34,16 @@ impl<'a, T: Ss58Codec> TryFrom<&'a str> for StashAccount<T> {
     type Error = anyhow::Error;
 
     fn try_from(val: &'a str) -> Result<Self> {
-        Ok(StashAccount(T::from_ss58check(val).map_err(|err| {
-            anyhow!(
-                "failed to convert value to Runtime account address: {:?}",
-                err
-            )
-        })?))
+        Ok(StashAccount(
+            T::from_ss58check_with_version(val)
+                .map_err(|err| {
+                    anyhow!(
+                        "failed to convert value to Runtime account address: {:?}",
+                        err
+                    )
+                })?
+                .0,
+        ))
     }
 }
 
@@ -55,17 +67,20 @@ impl<R: Runtime + Staking> ChainData<R> {
     }
     pub async fn fetch_staking_ledgers_by_stashes(
         &self,
-        targets: &[&StashAccount<R::AccountId>],
+        stashes: &[&StashAccount<R::AccountId>],
         at: Option<R::Hash>,
     ) -> Result<Vec<StakingLedger<R::AccountId, R::Balance>>> {
-        let mut entries = self.client.ledger_iter(at).await?;
         let mut ledgers = vec![];
 
-        let raw_targets: Vec<&R::AccountId> = targets.iter().map(|s| s.raw()).collect();
+        for stash in stashes {
+            let controller = self.client.bonded(stash.raw().clone(), at).await?;
 
-        while let Some((_, ledger)) = entries.next().await? {
-            if raw_targets.contains(&&ledger.stash) {
-                ledgers.push(ledger.clone())
+            if controller.is_none() {
+                continue;
+            }
+
+            if let Some(ledger) = self.client.ledger(controller.unwrap(), at).await? {
+                ledgers.push(ledger);
             }
         }
 
