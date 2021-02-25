@@ -5,9 +5,15 @@ use substrate_subxt::system::System;
 use substrate_subxt::sp_core::crypto::{Ss58Codec, AccountId32};
 use std::{convert::TryFrom, vec};
 
-pub struct Account(AccountId32);
+pub struct StashAccount<T>(T);
 
-impl TryFrom<String> for Account {
+impl<T> StashAccount<T> {
+    fn raw(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Ss58Codec> TryFrom<String> for StashAccount<T> {
     type Error = anyhow::Error;
 
     fn try_from(val: String) -> Result<Self> {
@@ -15,11 +21,11 @@ impl TryFrom<String> for Account {
     }
 }
 
-impl<'a> TryFrom<&'a str> for Account {
+impl<'a, T: Ss58Codec> TryFrom<&'a str> for StashAccount<T> {
     type Error = anyhow::Error;
 
     fn try_from(val: &'a str) -> Result<Self> {
-        Ok(Account(AccountId32::from_ss58check(val).map_err(|err| anyhow!("failed to convert value to Runtime account address: {:?}", err))?))
+        Ok(StashAccount(T::from_ss58check(val).map_err(|err| anyhow!("failed to convert value to Runtime account address: {:?}", err))?))
     }
 }
 
@@ -43,21 +49,20 @@ impl<R: Runtime + Staking> ChainData<R> {
             .await
             .map_err(|err| err.into())
     }
-    async fn fetch_staking_ledger_targets(
+    async fn fetch_staking_ledger_by_stash(
         &self,
-        targets: &[R::AccountId],
+        stash: &StashAccount<R::AccountId>,
         at: Option<R::Hash>,
-    ) -> Result<Vec<StakingLedger<R::AccountId, R::Balance>>> {
-        let mut ledgers = vec![];
+    ) -> Result<Option<StakingLedger<R::AccountId, R::Balance>>> {
         let mut entries = self.client.ledger_iter(at).await?;
 
         while let Some((_, ledger)) = entries.next().await? {
-            if targets.contains(&ledger.stash) {
-                ledgers.push(ledger.clone());
+            if &ledger.stash == stash.raw() {
+                return Ok(Some(ledger))
             }
         }
 
-        Ok(ledgers)
+        Ok(None)
     }
 }
 
@@ -72,7 +77,7 @@ async fn fetch_staking_ledger() {
     ];
 
     let onchain = ChainData::<KusamaRuntime>::new("wss://kusama-rpc.polkadot.io").await.unwrap();
-    let ledgers = onchain.fetch_staking_ledger_targets(&targets, None).await.unwrap();
+    let ledgers = onchain.fetch_staking_ledger_by_stash(&targets, None).await.unwrap();
     for ledger in ledgers {
         println!("\n\n>> {:?}", ledger);
     }
