@@ -5,6 +5,7 @@ use substrate_subxt::staking::{LedgerStoreExt, NominatorsStoreExt, Staking, Stak
 use substrate_subxt::system::System;
 use substrate_subxt::{Client, ClientBuilder, DefaultNodeRuntime, Runtime};
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StashAccount<T>(T);
 
 impl<T> StashAccount<T> {
@@ -47,37 +48,30 @@ pub struct ChainData<R: Runtime> {
 }
 
 impl<R: Runtime + Staking> ChainData<R> {
-    async fn new(hostname: &str) -> Result<ChainData<R>> {
+    pub async fn new(hostname: &str) -> Result<ChainData<R>> {
         Ok(ChainData {
             client: ClientBuilder::<R>::new().set_url(hostname).build().await?,
         })
     }
-    async fn fetch_staking_ledger(
+    pub async fn fetch_staking_ledgers_by_stashes(
         &self,
-        account: R::AccountId,
+        targets: &[&StashAccount<R::AccountId>],
         at: Option<R::Hash>,
-    ) -> Result<Option<StakingLedger<R::AccountId, R::Balance>>> {
-        self.client
-            .ledger(account, at)
-            .await
-            .map_err(|err| err.into())
-    }
-    async fn fetch_staking_ledger_by_stash(
-        &self,
-        stash: &StashAccount<R::AccountId>,
-        at: Option<R::Hash>,
-    ) -> Result<Option<StakingLedger<R::AccountId, R::Balance>>> {
+    ) -> Result<Vec<StakingLedger<R::AccountId, R::Balance>>> {
         let mut entries = self.client.ledger_iter(at).await?;
+        let mut ledgers = vec![];
+
+        let raw_targets: Vec<&R::AccountId> = targets.iter().map(|s| s.raw()).collect();
 
         while let Some((_, ledger)) = entries.next().await? {
-            if &ledger.stash == stash.raw() {
-                return Ok(Some(ledger));
+            if raw_targets.contains(&&ledger.stash) {
+                ledgers.push(ledger.clone())
             }
         }
 
-        Ok(None)
+        Ok(ledgers)
     }
-    async fn fetch_nominations_by_stash(
+    pub async fn fetch_nominations_by_stash(
         &self,
         stash: &StashAccount<R::AccountId>,
         at: Option<R::Hash>,
@@ -101,21 +95,27 @@ impl<R: Runtime + Staking> ChainData<R> {
 
 #[tokio::test]
 async fn fetch_staking_ledger() {
+    use std::convert::TryFrom;
     use substrate_subxt::KusamaRuntime;
 
     let targets = [
-        AccountId32::from_ss58check("EX9uchmfeSqKTM7cMMg8DkH49XV8i4R7a7rqCn8btpZBHDP").unwrap(),
-        AccountId32::from_ss58check("G1rrUNQSk7CjjEmLSGcpNu72tVtyzbWdUvgmSer9eBitXWf").unwrap(),
-        AccountId32::from_ss58check("HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX").unwrap(),
+        &StashAccount::<AccountId32>::try_from("EX9uchmfeSqKTM7cMMg8DkH49XV8i4R7a7rqCn8btpZBHDP")
+            .unwrap(),
+        &StashAccount::<AccountId32>::try_from("G1rrUNQSk7CjjEmLSGcpNu72tVtyzbWdUvgmSer9eBitXWf")
+            .unwrap(),
+        &StashAccount::<AccountId32>::try_from("HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX")
+            .unwrap(),
     ];
 
     let onchain = ChainData::<KusamaRuntime>::new("wss://kusama-rpc.polkadot.io")
         .await
         .unwrap();
+
     let ledgers = onchain
-        .fetch_staking_ledger_by_stash(&targets, None)
+        .fetch_staking_ledgers_by_stashes(&targets, None)
         .await
         .unwrap();
+
     for ledger in ledgers {
         println!("\n\n>> {:?}", ledger);
     }
