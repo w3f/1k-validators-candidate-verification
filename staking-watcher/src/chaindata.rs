@@ -1,9 +1,9 @@
 use crate::Result;
-use substrate_subxt::staking::{LedgerStoreExt, Staking, StakingLedger};
-use substrate_subxt::{Client, ClientBuilder, DefaultNodeRuntime, Runtime};
-use substrate_subxt::system::System;
-use substrate_subxt::sp_core::crypto::{Ss58Codec, AccountId32};
 use std::{convert::TryFrom, vec};
+use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
+use substrate_subxt::staking::{LedgerStoreExt, NominatorsStoreExt, Staking, StakingLedger};
+use substrate_subxt::system::System;
+use substrate_subxt::{Client, ClientBuilder, DefaultNodeRuntime, Runtime};
 
 pub struct StashAccount<T>(T);
 
@@ -25,7 +25,20 @@ impl<'a, T: Ss58Codec> TryFrom<&'a str> for StashAccount<T> {
     type Error = anyhow::Error;
 
     fn try_from(val: &'a str) -> Result<Self> {
-        Ok(StashAccount(T::from_ss58check(val).map_err(|err| anyhow!("failed to convert value to Runtime account address: {:?}", err))?))
+        Ok(StashAccount(T::from_ss58check(val).map_err(|err| {
+            anyhow!(
+                "failed to convert value to Runtime account address: {:?}",
+                err
+            )
+        })?))
+    }
+}
+
+pub struct NominatedAccount<T>(T);
+
+impl<T> NominatedAccount<T> {
+    fn raw(&self) -> &T {
+        &self.0
     }
 }
 
@@ -58,11 +71,31 @@ impl<R: Runtime + Staking> ChainData<R> {
 
         while let Some((_, ledger)) = entries.next().await? {
             if &ledger.stash == stash.raw() {
-                return Ok(Some(ledger))
+                return Ok(Some(ledger));
             }
         }
 
         Ok(None)
+    }
+    async fn fetch_nominations_by_stash(
+        &self,
+        stash: &StashAccount<R::AccountId>,
+        at: Option<R::Hash>,
+    ) -> Result<Vec<NominatedAccount<R::AccountId>>> {
+        self.client
+            .nominators(stash.raw().clone(), at)
+            .await
+            .map(|n| {
+                n.map(|nominations| {
+                    nominations
+                        .targets
+                        .into_iter()
+                        .map(|t| NominatedAccount(t))
+                        .collect()
+                })
+                .unwrap_or(vec![])
+            })
+            .map_err(|err| err.into())
     }
 }
 
@@ -76,8 +109,13 @@ async fn fetch_staking_ledger() {
         AccountId32::from_ss58check("HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX").unwrap(),
     ];
 
-    let onchain = ChainData::<KusamaRuntime>::new("wss://kusama-rpc.polkadot.io").await.unwrap();
-    let ledgers = onchain.fetch_staking_ledger_by_stash(&targets, None).await.unwrap();
+    let onchain = ChainData::<KusamaRuntime>::new("wss://kusama-rpc.polkadot.io")
+        .await
+        .unwrap();
+    let ledgers = onchain
+        .fetch_staking_ledger_by_stash(&targets, None)
+        .await
+        .unwrap();
     for ledger in ledgers {
         println!("\n\n>> {:?}", ledger);
     }
