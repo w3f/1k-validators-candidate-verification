@@ -1,12 +1,14 @@
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate anyhow;
 #[macro_use]
 extern crate serde;
 
 use chaindata::ChainData;
 use chaindata::StashAccount;
-use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::{collections::HashMap, vec};
 use substrate_subxt::sp_core::crypto::{AccountId32, Ss58AddressFormat, Ss58Codec};
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime, Runtime};
 
@@ -39,30 +41,38 @@ pub enum Network {
 async fn run_candidate_check<R: Runtime>(
     chain_data_hostname: &str,
     candidate_hostname: &str,
+    nominators: Vec<StashAccount<AccountId32>>,
 ) -> Result<()> {
     let chaindata = ChainData::<DefaultNodeRuntime>::new(chain_data_hostname).await?;
     let candidates = fetch_from_endpoint(candidate_hostname).await?;
 
-    println!("Fetching data");
-    let ledgers = chaindata
+    let ledger_lookups = chaindata
         .fetch_staking_ledgers_by_stashes(&candidates, None)
         .await?;
 
-    println!("Stash,Name,Last claimed (Era)");
-    /*
-    for ledger in ledgers {
-        println!(
-            "{},{},{}",
-            ledger
-                .stash
-                .to_ss58check_with_version(Ss58AddressFormat::PolkadotAccount),
-            candidates
-                .get_name(&StashAccount::from(ledger.stash.clone()))
-                .unwrap_or("N/A"),
-            ledger.claimed_rewards.last().unwrap_or(&0)
+    let mut nominations = vec![];
+    for nominator in &nominators {
+        nominations.append(
+            &mut chaindata
+                .fetch_nominations_by_stash(nominator, None)
+                .await?,
         );
     }
-    */
+
+    println!("Stash,Name,Last claimed (Era)");
+    for lookup in ledger_lookups {
+        let address = lookup.account_str();
+        let name = lookup.name().unwrap_or("N/A");
+
+        let last_claimed = if let Some(era) = lookup.last_claimed() {
+            era.map(|era| era.to_string()).unwrap_or("N/A".to_string())
+        } else {
+            warn!("No ledger was found for {} (name \"{}\"). This occurs when no stake has been bonded.", address, name);
+            continue;
+        };
+
+        println!("{},{},{}", address, name, last_claimed,);
+    }
 
     Ok(())
 }
@@ -101,6 +111,7 @@ async fn test_run_candidate_check() {
     run_candidate_check::<DefaultNodeRuntime>(
         "wss://rpc.polkadot.io",
         "https://polkadot.w3f.community/candidates",
+        vec![],
     )
     .await
     .unwrap();

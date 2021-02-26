@@ -1,7 +1,7 @@
 use crate::Result;
 use parity_scale_codec::{Decode, HasCompact};
 use std::{convert::TryFrom, vec};
-use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
+use substrate_subxt::sp_core::crypto::{AccountId32, Ss58AddressFormat, Ss58Codec};
 use substrate_subxt::staking::{
     BondedStoreExt, LedgerStoreExt, NominatorsStoreExt, Staking, StakingLedger,
 };
@@ -20,6 +20,9 @@ impl<T> StashAccount<T> {
     }
     pub fn set_name(&mut self, name: String) {
         self.name = Some(name);
+    }
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|n| n.as_str())
     }
 }
 
@@ -61,11 +64,12 @@ impl<'a, T: Ss58Codec> TryFrom<&'a str> for StashAccount<T> {
 pub struct NominatedAccount<T>(T);
 
 impl<T> NominatedAccount<T> {
-    fn raw(&self) -> &T {
+    fn stash(&self) -> &T {
         &self.0
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LedgerLookup<'a, T, B>
 where
     T: Decode,
@@ -73,6 +77,26 @@ where
 {
     account: &'a StashAccount<T>,
     ledger: Option<StakingLedger<T, B>>,
+}
+
+impl<'a, T, B> LedgerLookup<'a, T, B>
+where
+    T: Decode + Ss58Codec,
+    B: HasCompact,
+{
+    pub fn account_str(&self) -> String {
+        self.account
+            .stash()
+            .to_ss58check_with_version(Ss58AddressFormat::PolkadotAccount)
+    }
+    pub fn name(&self) -> Option<&str> {
+        self.account.name.as_ref().map(|n| n.as_str())
+    }
+    pub fn last_claimed(&self) -> Option<Option<u32>> {
+        self.ledger
+            .as_ref()
+            .map(|l| l.claimed_rewards.last().map(|era| *era))
+    }
 }
 
 pub struct ChainData<R: Runtime> {
@@ -136,11 +160,11 @@ async fn fetch_staking_ledger() {
     use substrate_subxt::KusamaRuntime;
 
     let targets = [
-        &StashAccount::<AccountId32>::try_from("EX9uchmfeSqKTM7cMMg8DkH49XV8i4R7a7rqCn8btpZBHDP")
+        StashAccount::<AccountId32>::try_from("EX9uchmfeSqKTM7cMMg8DkH49XV8i4R7a7rqCn8btpZBHDP")
             .unwrap(),
-        &StashAccount::<AccountId32>::try_from("G1rrUNQSk7CjjEmLSGcpNu72tVtyzbWdUvgmSer9eBitXWf")
+        StashAccount::<AccountId32>::try_from("G1rrUNQSk7CjjEmLSGcpNu72tVtyzbWdUvgmSer9eBitXWf")
             .unwrap(),
-        &StashAccount::<AccountId32>::try_from("HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX")
+        StashAccount::<AccountId32>::try_from("HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX")
             .unwrap(),
     ];
 
@@ -151,8 +175,7 @@ async fn fetch_staking_ledger() {
     let ledgers = onchain
         .fetch_staking_ledgers_by_stashes(&targets, None)
         .await
-        .unwrap()
-        .0;
+        .unwrap();
 
     for ledger in ledgers {
         println!("\n\n>> {:?}", ledger);
