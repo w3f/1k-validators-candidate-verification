@@ -8,17 +8,26 @@ use substrate_subxt::system::System;
 use substrate_subxt::{Client, ClientBuilder, DefaultNodeRuntime, Runtime};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct StashAccount<T>(T);
+pub struct StashAccount<T> {
+    stash: T,
+    name: Option<String>,
+}
 
 impl<T> StashAccount<T> {
-    fn raw(&self) -> &T {
-        &self.0
+    pub fn stash(&self) -> &T {
+        &self.stash
+    }
+    pub fn set_name(&mut self, name: String) {
+        self.name = Some(name);
     }
 }
 
 impl From<AccountId32> for StashAccount<AccountId32> {
     fn from(val: AccountId32) -> Self {
-        StashAccount(val)
+        StashAccount {
+            stash: val,
+            name: None,
+        }
     }
 }
 
@@ -34,8 +43,8 @@ impl<'a, T: Ss58Codec> TryFrom<&'a str> for StashAccount<T> {
     type Error = anyhow::Error;
 
     fn try_from(val: &'a str) -> Result<Self> {
-        Ok(StashAccount(
-            T::from_ss58check_with_version(val)
+        Ok(StashAccount {
+            stash: T::from_ss58check_with_version(val)
                 .map_err(|err| {
                     anyhow!(
                         "failed to convert value to Runtime account address: {:?}",
@@ -43,7 +52,8 @@ impl<'a, T: Ss58Codec> TryFrom<&'a str> for StashAccount<T> {
                     )
                 })?
                 .0,
-        ))
+            name: None,
+        })
     }
 }
 
@@ -53,6 +63,11 @@ impl<T> NominatedAccount<T> {
     fn raw(&self) -> &T {
         &self.0
     }
+}
+
+pub struct LedgerLookup<'a, T, B> {
+    account: &'a StashAccount<T>,
+    ledger: Option<StakingLedger<T, B>>,
 }
 
 pub struct ChainData<R: Runtime> {
@@ -65,34 +80,37 @@ impl<R: Runtime + Staking> ChainData<R> {
             client: ClientBuilder::<R>::new().set_url(hostname).build().await?,
         })
     }
-    pub async fn fetch_staking_ledgers_by_stashes(
+    pub async fn fetch_staking_ledgers_by_stashes<'a>(
         &self,
-        stashes: &[&StashAccount<R::AccountId>],
+        accounts: &'a [StashAccount<R::AccountId>],
         at: Option<R::Hash>,
-    ) -> Result<Vec<StakingLedger<R::AccountId, R::Balance>>> {
-        let mut ledgers = vec![];
+    ) -> Result<Vec<LedgerLookup<'a, R::AccountId, R::Balance>>> {
+        let mut lookups = vec![];
+        let mut not_found = vec![];
 
-        for stash in stashes {
-            let controller = self.client.bonded(stash.raw().clone(), at).await?;
+        for account in accounts {
+            let ledger =
+                if let Some(controller) = self.client.bonded(account.stash().clone(), at).await? {
+                    self.client.ledger(controller.unwrap(), at).await?
+                } else {
+                    None
+                };
 
-            if controller.is_none() {
-                continue;
-            }
-
-            if let Some(ledger) = self.client.ledger(controller.unwrap(), at).await? {
-                ledgers.push(ledger);
-            }
+            lookups.push(LedgerLookup {
+                account: account,
+                ledger: ledger,
+            });
         }
 
-        Ok(ledgers)
+        Ok(lookups)
     }
     pub async fn fetch_nominations_by_stash(
         &self,
-        stash: &StashAccount<R::AccountId>,
+        account: &StashAccount<R::AccountId>,
         at: Option<R::Hash>,
     ) -> Result<Vec<NominatedAccount<R::AccountId>>> {
         self.client
-            .nominators(stash.raw().clone(), at)
+            .nominators(account.stash().clone(), at)
             .await
             .map(|n| {
                 n.map(|nominations| {
@@ -129,7 +147,8 @@ async fn fetch_staking_ledger() {
     let ledgers = onchain
         .fetch_staking_ledgers_by_stashes(&targets, None)
         .await
-        .unwrap();
+        .unwrap()
+        .0;
 
     for ledger in ledgers {
         println!("\n\n>> {:?}", ledger);

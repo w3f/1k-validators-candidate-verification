@@ -41,20 +41,12 @@ async fn run_candidate_check<R: Runtime>(
     candidate_hostname: &str,
 ) -> Result<()> {
     let chaindata = ChainData::<DefaultNodeRuntime>::new(chain_data_hostname).await?;
-    let candidates = CandidateEndpoint::fetch_from_endpoint(candidate_hostname).await?;
+    let candidates = fetch_from_endpoint(candidate_hostname).await?;
 
     println!("Fetching data");
-    let mut ledgers = chaindata
-        .fetch_staking_ledgers_by_stashes(&candidates.list_stashes(), None)
+    let ledgers = chaindata
+        .fetch_staking_ledgers_by_stashes(&candidates, None)
         .await?;
-
-    ledgers.sort_by(|a, b| {
-        b.claimed_rewards
-            .last()
-            .unwrap_or(&0)
-            .partial_cmp(a.claimed_rewards.last().unwrap_or(&0))
-            .unwrap()
-    });
 
     println!("Stash,Name,Last claimed (Era)");
     for ledger in ledgers {
@@ -73,34 +65,24 @@ async fn run_candidate_check<R: Runtime>(
     Ok(())
 }
 
-struct CandidateEndpoint {
-    candidates: HashMap<StashAccount<AccountId32>, String>,
-}
-
-impl CandidateEndpoint {
-    async fn fetch_from_endpoint(endpoint: &str) -> Result<Self> {
-        Ok(CandidateEndpoint {
-            candidates: {
-                let candidates = reqwest::get(endpoint)
-                    .await?
-                    .json::<Vec<Candidate>>()
-                    .await?;
-
-                let mut map = HashMap::new();
-                for candidate in candidates {
-                    map.insert(StashAccount::try_from(candidate.stash)?, candidate.name);
-                }
-
-                map
-            },
+async fn fetch_from_endpoint(endpoint: &str) -> Result<Vec<StashAccount<AccountId32>>> {
+    Ok(reqwest::get(endpoint)
+        .await?
+        .json::<Vec<Candidate>>()
+        .await?
+        .into_iter()
+        .map(|candidate| {
+            let (address, name) = (candidate.stash, candidate.name);
+            if let Ok(mut account) = StashAccount::try_from(address) {
+                account.set_name(name);
+                Ok(account)
+            } else {
+                Err(anyhow!(
+                    "failed to convert candidate address to stash account"
+                ))
+            }
         })
-    }
-    fn list_stashes(&self) -> Vec<&StashAccount<AccountId32>> {
-        self.candidates.keys().collect()
-    }
-    fn get_name(&self, stash: &StashAccount<AccountId32>) -> Option<&str> {
-        self.candidates.get(stash).map(|s| s.as_str())
-    }
+        .collect::<Result<Vec<StashAccount<AccountId32>>>>()?)
 }
 
 /// Structure to parse the `/candidates` endpoint. Only required fields are
