@@ -83,6 +83,14 @@ async fn run_candidate_check<R: Runtime>(
         );
     }
 
+    // Calculate the average Era where rewards were last claimed.
+    let avg_last_claimed: u32 = ledger_lookups
+        .iter()
+        // Unwrapping is fine since this cases has been handled in the retain mechanism above.
+        .map(|lookup| lookup.last_claimed().unwrap().unwrap_or(0))
+        .sum::<u32>()
+        / ledger_lookups.iter().count() as u32;
+
     // Display table of candidates.
     let mut table = Table::new();
     table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
@@ -101,8 +109,7 @@ async fn run_candidate_check<R: Runtime>(
             // Unwrapping is fine since this cases has been handled in the
             // retain mechanism above.
             .unwrap()
-            .map(|era| era.to_string())
-            .unwrap_or("N/A".to_string());
+            .unwrap_or(0);
 
         let is_nominated = if nominations
             .iter()
@@ -114,7 +121,25 @@ async fn run_candidate_check<R: Runtime>(
             "no"
         };
 
-        table.add_row(row![address, name, last_claimed, is_nominated]);
+        table.add_row(row![
+            address,
+            name,
+            {
+                if last_claimed == 0 {
+                    "N/A".to_string()
+                } else {
+                    last_claimed.to_string()
+                }
+            },
+            is_nominated
+        ]);
+
+        if last_claimed < avg_last_claimed {
+            warn!(
+                "Validator {} (name \"{}\") lags behind in claiming rewards (last claim in Era {})",
+                address, name, last_claimed
+            );
+        }
     }
 
     table.printstd();
@@ -153,6 +178,7 @@ pub struct Candidate {
 
 #[tokio::test]
 async fn test_run_candidate_check() {
+    env_logger::init();
     run_candidate_check::<DefaultNodeRuntime>(
         "wss://rpc.polkadot.io",
         "https://polkadot.w3f.community/candidates",
