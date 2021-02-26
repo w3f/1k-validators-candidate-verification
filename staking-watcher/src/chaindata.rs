@@ -1,4 +1,5 @@
 use crate::Result;
+use parity_scale_codec::{Decode, HasCompact};
 use std::{convert::TryFrom, vec};
 use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
 use substrate_subxt::staking::{
@@ -65,7 +66,11 @@ impl<T> NominatedAccount<T> {
     }
 }
 
-pub struct LedgerLookup<'a, T, B> {
+pub struct LedgerLookup<'a, T, B>
+where
+    T: Decode,
+    B: HasCompact,
+{
     account: &'a StashAccount<T>,
     ledger: Option<StakingLedger<T, B>>,
 }
@@ -86,12 +91,11 @@ impl<R: Runtime + Staking> ChainData<R> {
         at: Option<R::Hash>,
     ) -> Result<Vec<LedgerLookup<'a, R::AccountId, R::Balance>>> {
         let mut lookups = vec![];
-        let mut not_found = vec![];
 
         for account in accounts {
             let ledger =
                 if let Some(controller) = self.client.bonded(account.stash().clone(), at).await? {
-                    self.client.ledger(controller.unwrap(), at).await?
+                    self.client.ledger(controller, at).await?
                 } else {
                     None
                 };

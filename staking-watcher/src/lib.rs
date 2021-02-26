@@ -49,6 +49,7 @@ async fn run_candidate_check<R: Runtime>(
         .await?;
 
     println!("Stash,Name,Last claimed (Era)");
+    /*
     for ledger in ledgers {
         println!(
             "{},{},{}",
@@ -61,6 +62,7 @@ async fn run_candidate_check<R: Runtime>(
             ledger.claimed_rewards.last().unwrap_or(&0)
         );
     }
+    */
 
     Ok(())
 }

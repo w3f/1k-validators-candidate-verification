@@ -3323,6 +3323,7 @@ dependencies = [
  "anyhow",
  "futures",
  "log",
+ "parity-scale-codec",
  "reqwest",
  "serde",
  "substrate-subxt",
