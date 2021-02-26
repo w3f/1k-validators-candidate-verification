@@ -151,31 +151,3 @@ impl<R: Runtime + Staking> ChainData<R> {
             .map_err(|err| err.into())
     }
 }
-
-#[tokio::test]
-async fn fetch_staking_ledger() {
-    use std::convert::TryFrom;
-    use substrate_subxt::KusamaRuntime;
-
-    let targets = [
-        StashAccount::<AccountId32>::try_from("EX9uchmfeSqKTM7cMMg8DkH49XV8i4R7a7rqCn8btpZBHDP")
-            .unwrap(),
-        StashAccount::<AccountId32>::try_from("G1rrUNQSk7CjjEmLSGcpNu72tVtyzbWdUvgmSer9eBitXWf")
-            .unwrap(),
-        StashAccount::<AccountId32>::try_from("HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX")
-            .unwrap(),
-    ];
-
-    let onchain = ChainData::<KusamaRuntime>::new("wss://kusama-rpc.polkadot.io")
-        .await
-        .unwrap();
-
-    let ledgers = onchain
-        .fetch_staking_ledgers_by_stashes(&targets, None)
-        .await
-        .unwrap();
-
-    for ledger in ledgers {
-        println!("\n\n>> {:?}", ledger);
-    }
-}

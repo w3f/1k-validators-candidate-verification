@@ -8,7 +8,8 @@ extern crate serde;
 extern crate prettytable;
 
 use chaindata::ChainData;
-use chaindata::StashAccount;
+pub use chaindata::StashAccount;
+use log::{Level, LevelFilter};
 use prettytable::{format, Cell, Row, Table};
 use std::convert::TryFrom;
 use std::{collections::HashMap, vec};
@@ -17,36 +18,36 @@ use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime, Runtime};
 
 mod chaindata;
 
-type Result<T> = std::result::Result<T, anyhow::Error>;
+pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct Config {
-    candidate_endpoints: EndpointConfig,
-    chain_data_hostname: String,
-    watch_stashes: Vec<String>,
+    pub networks: Vec<NetworkConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EndpointConfig {
-    network: Network,
-    hostname: String,
+#[serde(rename_all = "snake_case")]
+pub struct NetworkConfig {
+    pub network: Network,
+    pub candidate_hostname: String,
+    pub chaindata_hostname: String,
+    pub watch_targets: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum Network {
     Polkadot,
     Kusama,
 }
 
-async fn run_candidate_check<R: Runtime>(
-    chain_data_hostname: &str,
+pub async fn generate_candidate_report<R: Runtime>(
     candidate_hostname: &str,
+    chaindata_hostname: &str,
     nominators: Vec<StashAccount<AccountId32>>,
 ) -> Result<()> {
-    let chaindata = ChainData::<DefaultNodeRuntime>::new(chain_data_hostname).await?;
+    let chaindata = ChainData::<DefaultNodeRuntime>::new(chaindata_hostname).await?;
     let candidates = fetch_from_endpoint(candidate_hostname).await?;
 
     let mut ledger_lookups = chaindata
@@ -170,33 +171,8 @@ async fn fetch_from_endpoint(endpoint: &str) -> Result<Vec<StashAccount<AccountI
 /// Structure to parse the `/candidates` endpoint. Only required fields are
 /// specified.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct Candidate {
     pub name: String,
     pub stash: String,
-}
-
-#[tokio::test]
-async fn test_run_candidate_check() {
-    env_logger::init();
-    run_candidate_check::<DefaultNodeRuntime>(
-        "wss://rpc.polkadot.io",
-        "https://polkadot.w3f.community/candidates",
-        vec![
-            StashAccount::<AccountId32>::try_from(
-                "14Ns6kKbCoka3MS4Hn6b7oRw9fFejG8RH5rq5j63cWUfpPDJ",
-            )
-            .unwrap(),
-            StashAccount::<AccountId32>::try_from(
-                "12RYJb5gG4hfoWPK3owEYtmWoko8G6zwYpvDYTyXFVSfJr8Y",
-            )
-            .unwrap(),
-            StashAccount::<AccountId32>::try_from(
-                "16GMHo9HZv8CcJy4WLoMaU9qusgzx2wxKDLbXStEBvt5274B",
-            )
-            .unwrap(),
-        ],
-    )
-    .await
-    .unwrap();
 }
