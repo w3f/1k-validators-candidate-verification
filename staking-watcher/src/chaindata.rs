@@ -61,14 +61,6 @@ impl<'a, T: Ss58Codec> TryFrom<&'a str> for StashAccount<T> {
     }
 }
 
-pub struct NominatedAccount<T>(T);
-
-impl<T> NominatedAccount<T> {
-    fn stash(&self) -> &T {
-        &self.0
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct LedgerLookup<'a, T, B>
 where
@@ -84,6 +76,9 @@ where
     T: Decode + Ss58Codec,
     B: HasCompact,
 {
+    pub fn account(&self) -> &StashAccount<T> {
+        &self.account
+    }
     pub fn account_str(&self) -> String {
         self.account
             .stash()
@@ -136,7 +131,7 @@ impl<R: Runtime + Staking> ChainData<R> {
         &self,
         account: &StashAccount<R::AccountId>,
         at: Option<R::Hash>,
-    ) -> Result<Vec<NominatedAccount<R::AccountId>>> {
+    ) -> Result<Vec<StashAccount<R::AccountId>>> {
         self.client
             .nominators(account.stash().clone(), at)
             .await
@@ -145,7 +140,10 @@ impl<R: Runtime + Staking> ChainData<R> {
                     nominations
                         .targets
                         .into_iter()
-                        .map(|t| NominatedAccount(t))
+                        .map(|s| StashAccount {
+                            stash: s,
+                            name: None,
+                        })
                         .collect()
                 })
                 .unwrap_or(vec![])

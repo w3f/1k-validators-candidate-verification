@@ -4,9 +4,12 @@ extern crate log;
 extern crate anyhow;
 #[macro_use]
 extern crate serde;
+#[macro_use]
+extern crate prettytable;
 
 use chaindata::ChainData;
 use chaindata::StashAccount;
+use prettytable::{format, Cell, Row, Table};
 use std::convert::TryFrom;
 use std::{collections::HashMap, vec};
 use substrate_subxt::sp_core::crypto::{AccountId32, Ss58AddressFormat, Ss58Codec};
@@ -70,6 +73,7 @@ async fn run_candidate_check<R: Runtime>(
             .unwrap()
     });
 
+    // Fetch nominations.
     let mut nominations = vec![];
     for nominator in &nominators {
         nominations.append(
@@ -79,7 +83,16 @@ async fn run_candidate_check<R: Runtime>(
         );
     }
 
-    println!("Stash,Name,Last claimed (Era)");
+    // Display table of candidates.
+    let mut table = Table::new();
+    table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
+    table.set_titles(row![
+        "Stash",
+        "Name",
+        "Last claimed (Era)",
+        "Nominated by targets"
+    ]);
+
     for lookup in ledger_lookups {
         let address = lookup.account_str();
         let name = lookup.name().unwrap_or("N/A");
@@ -91,8 +104,16 @@ async fn run_candidate_check<R: Runtime>(
             .map(|era| era.to_string())
             .unwrap_or("N/A".to_string());
 
-        println!("{},{},{}", address, name, last_claimed);
+        let is_nominated = if nominations.contains(lookup.account()) {
+            "YES"
+        } else {
+            "no"
+        };
+
+        table.add_row(row![address, name, last_claimed, is_nominated]);
     }
+
+    table.printstd();
 
     Ok(())
 }
@@ -131,7 +152,20 @@ async fn test_run_candidate_check() {
     run_candidate_check::<DefaultNodeRuntime>(
         "wss://rpc.polkadot.io",
         "https://polkadot.w3f.community/candidates",
-        vec![],
+        vec![
+            StashAccount::<AccountId32>::try_from(
+                "EX9uchmfeSqKTM7cMMg8DkH49XV8i4R7a7rqCn8btpZBHDP",
+            )
+            .unwrap(),
+            StashAccount::<AccountId32>::try_from(
+                "G1rrUNQSk7CjjEmLSGcpNu72tVtyzbWdUvgmSer9eBitXWf",
+            )
+            .unwrap(),
+            StashAccount::<AccountId32>::try_from(
+                "HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX",
+            )
+            .unwrap(),
+        ],
     )
     .await
     .unwrap();
