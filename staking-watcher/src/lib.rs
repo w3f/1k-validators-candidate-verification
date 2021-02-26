@@ -104,7 +104,11 @@ async fn run_candidate_check<R: Runtime>(
             .map(|era| era.to_string())
             .unwrap_or("N/A".to_string());
 
-        let is_nominated = if nominations.contains(lookup.account()) {
+        let is_nominated = if nominations
+            .iter()
+            .find(|target| target.stash() == lookup.account().stash())
+            .is_some()
+        {
             "YES"
         } else {
             "no"
@@ -154,15 +158,15 @@ async fn test_run_candidate_check() {
         "https://polkadot.w3f.community/candidates",
         vec![
             StashAccount::<AccountId32>::try_from(
-                "EX9uchmfeSqKTM7cMMg8DkH49XV8i4R7a7rqCn8btpZBHDP",
+                "14Ns6kKbCoka3MS4Hn6b7oRw9fFejG8RH5rq5j63cWUfpPDJ",
             )
             .unwrap(),
             StashAccount::<AccountId32>::try_from(
-                "G1rrUNQSk7CjjEmLSGcpNu72tVtyzbWdUvgmSer9eBitXWf",
+                "12RYJb5gG4hfoWPK3owEYtmWoko8G6zwYpvDYTyXFVSfJr8Y",
             )
             .unwrap(),
             StashAccount::<AccountId32>::try_from(
-                "HgTtJusFEn2gmMmB5wmJDnMRXKD6dzqCpNR7a99kkQ7BNvX",
+                "16GMHo9HZv8CcJy4WLoMaU9qusgzx2wxKDLbXStEBvt5274B",
             )
             .unwrap(),
         ],
