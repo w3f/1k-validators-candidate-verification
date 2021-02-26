@@ -1,6 +1,6 @@
-use crate::client::MongoClient;
+use crate::database::MongoClient;
 use crate::events::MessageEvent;
-use crate::{client, Result};
+use crate::{database, Result};
 use futures::{SinkExt, StreamExt};
 use std::convert::TryInto;
 use tokio_tungstenite::connect_async;

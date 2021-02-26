@@ -14,7 +14,7 @@ use serde::de::{Deserialize, DeserializeOwned};
 use serde::ser::Serialize;
 use std::convert::TryInto;
 
-mod client;
+mod database;
 mod events;
 mod state;
 mod system;
