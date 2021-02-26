@@ -46,9 +46,29 @@ async fn run_candidate_check<R: Runtime>(
     let chaindata = ChainData::<DefaultNodeRuntime>::new(chain_data_hostname).await?;
     let candidates = fetch_from_endpoint(candidate_hostname).await?;
 
-    let ledger_lookups = chaindata
+    let mut ledger_lookups = chaindata
         .fetch_staking_ledgers_by_stashes(&candidates, None)
         .await?;
+
+    // Only retain those accounts which have a ledger.
+    ledger_lookups.retain(|l| {
+        if l.last_claimed().is_none() {
+            warn!("No ledger was found for {} (name \"{}\"). This occurs when no stake has been bonded.", l.account_str(), l.name().unwrap_or("N/A"));
+            false
+        } else {
+            true
+        }
+    });
+
+    // Sort based on last claimed Era index.
+    ledger_lookups.sort_by(|a, b| {
+        // Unwrapping is fine since this cases has been handled in the retain mechanism above.
+        b.last_claimed()
+            .unwrap()
+            .unwrap_or(0)
+            .partial_cmp(&a.last_claimed().unwrap().unwrap_or(0))
+            .unwrap()
+    });
 
     let mut nominations = vec![];
     for nominator in &nominators {
@@ -63,15 +83,15 @@ async fn run_candidate_check<R: Runtime>(
     for lookup in ledger_lookups {
         let address = lookup.account_str();
         let name = lookup.name().unwrap_or("N/A");
+        let last_claimed = lookup
+            .last_claimed()
+            // Unwrapping is fine since this cases has been handled in the
+            // retain mechanism above.
+            .unwrap()
+            .map(|era| era.to_string())
+            .unwrap_or("N/A".to_string());
 
-        let last_claimed = if let Some(era) = lookup.last_claimed() {
-            era.map(|era| era.to_string()).unwrap_or("N/A".to_string())
-        } else {
-            warn!("No ledger was found for {} (name \"{}\"). This occurs when no stake has been bonded.", address, name);
-            continue;
-        };
-
-        println!("{},{},{}", address, name, last_claimed,);
+        println!("{},{},{}", address, name, last_claimed);
     }
 
     Ok(())
