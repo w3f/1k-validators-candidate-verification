@@ -1,11 +1,10 @@
 #[macro_use]
-extern crate tokio;
+extern crate log;
 
 use lib::{generate_candidate_report, Config, Network, Result, StashAccount};
-use log::info;
 use std::{convert::TryFrom, fs::read_to_string};
 use substrate_subxt::sp_core::crypto::AccountId32;
-use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime, Runtime};
+use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 
 #[tokio::main]
 async fn main() -> Result<()> {

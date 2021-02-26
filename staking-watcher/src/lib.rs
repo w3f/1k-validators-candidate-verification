@@ -9,12 +9,10 @@ extern crate prettytable;
 
 use chaindata::ChainData;
 pub use chaindata::StashAccount;
-use log::{Level, LevelFilter};
-use prettytable::{format, Cell, Row, Table};
+use prettytable::{format, Table};
 use std::convert::TryFrom;
-use std::{collections::HashMap, vec};
-use substrate_subxt::sp_core::crypto::{AccountId32, Ss58AddressFormat, Ss58Codec};
-use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime, Runtime};
+use substrate_subxt::sp_core::crypto::AccountId32;
+use substrate_subxt::{DefaultNodeRuntime, Runtime};
 
 mod chaindata;
 
@@ -50,6 +48,7 @@ pub async fn generate_candidate_report<R: Runtime>(
     let chaindata = ChainData::<DefaultNodeRuntime>::new(chaindata_hostname).await?;
     let candidates = fetch_from_endpoint(candidate_hostname).await?;
 
+    debug!("Fetching ledgers of candidates");
     let mut ledger_lookups = chaindata
         .fetch_staking_ledgers_by_stashes(&candidates, None)
         .await?;
@@ -75,6 +74,7 @@ pub async fn generate_candidate_report<R: Runtime>(
     });
 
     // Fetch nominations.
+    debug!("Fetching nominations of target addresses");
     let mut nominations = vec![];
     for nominator in &nominators {
         nominations.append(
@@ -93,6 +93,7 @@ pub async fn generate_candidate_report<R: Runtime>(
         / ledger_lookups.iter().count() as u32;
 
     // Display table of candidates.
+    info!("Generating report table");
     let mut table = Table::new();
     table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
     table.set_titles(row![
