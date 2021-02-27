@@ -16,7 +16,6 @@ use std::convert::TryInto;
 
 mod database;
 mod events;
-mod state;
 mod system;
 
 const DEFAULT_TELEMETRY: &'static str = "wss://telemetry-backend.w3f.community/feed";

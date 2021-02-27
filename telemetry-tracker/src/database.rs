@@ -1,13 +1,60 @@
 use crate::events::{NodeId, NodeName, TelemetryEvent};
-use crate::state::{EventLog, LogTimestamp, NodeActivity};
 use crate::{Result, ToBson};
 use bson::{from_document, Document};
 use futures::{StreamExt, TryStreamExt};
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
 use tokio_tungstenite::tungstenite::Message;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RegisteredStash;
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RegisteredController;
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct LogTimestamp(i64);
+
+impl LogTimestamp {
+    pub fn new() -> Self {
+        LogTimestamp(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs() as i64,
+        )
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NodeActivity {
+    pub node_id: NodeId,
+    pub node_name: Option<NodeName>,
+    pub stash: Option<RegisteredStash>,
+    pub controller: Option<RegisteredController>,
+    pub last_event_log: LogTimestamp,
+    pub event_logs: Vec<EventLog>,
+}
+
+impl NodeActivity {
+    pub fn new(id: NodeId, name: Option<NodeName>) -> Self {
+        NodeActivity {
+            node_id: id,
+            node_name: name,
+            stash: None,
+            controller: None,
+            last_event_log: LogTimestamp::new(),
+            event_logs: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct EventLog {
+    pub timestamp: LogTimestamp,
+    pub event: TelemetryEvent,
+}
 
 pub struct MongoClient {
     db: Database,
