@@ -20,7 +20,7 @@ impl LogTimestamp {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NodeInfo {
+pub struct NodeActivity {
     pub node_id: NodeId,
     pub node_name: Option<NodeName>,
     pub stash: Option<RegisteredStash>,
@@ -29,9 +29,9 @@ pub struct NodeInfo {
     pub event_logs: Vec<EventLog>,
 }
 
-impl NodeInfo {
+impl NodeActivity {
     pub fn new(id: NodeId, name: Option<NodeName>) -> Self {
-        NodeInfo {
+        NodeActivity {
             node_id: id,
             node_name: name,
             stash: None,

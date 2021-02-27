@@ -1,5 +1,5 @@
 use crate::events::{MessageEvent, NodeId, NodeName};
-use crate::state::{EventLog, LogTimestamp, NodeInfo};
+use crate::state::{EventLog, LogTimestamp, NodeActivity};
 use crate::{Result, ToBson};
 use bson::{from_document, Document};
 use futures::{StreamExt, TryStreamExt};
@@ -42,7 +42,7 @@ impl TelemetryEventStore {
                     "node_id": node_id.to_bson()?,
                 },
                 doc! {
-                    "$setOnInsert": NodeInfo::new(node_id.clone(), node_name.map(|n| n.clone())).to_bson()?,
+                    "$setOnInsert": NodeActivity::new(node_id.clone(), node_name.map(|n| n.clone())).to_bson()?,
                 },
                 Some({
                     let mut options = UpdateOptions::default();
@@ -82,7 +82,7 @@ impl TelemetryEventStore {
 
         Ok(())
     }
-    pub async fn get_info_by_name(&self, name: &NodeName) -> Result<Vec<NodeInfo>> {
+    pub async fn get_node_activity_by_name(&self, name: &NodeName) -> Result<Vec<NodeActivity>> {
         let mut cursor = self
             .coll
             .find(
@@ -100,7 +100,7 @@ impl TelemetryEventStore {
 
         Ok(entries)
     }
-    pub async fn get_info_by_id(&self, node_id: &NodeId) -> Result<Option<NodeInfo>> {
+    pub async fn get_node_activity_by_id(&self, node_id: &NodeId) -> Result<Option<NodeActivity>> {
         if let Some(doc) = self
             .coll
             .find_one(
@@ -163,27 +163,39 @@ mod tests {
         }
 
         // Check NodeId 1.
-        let stored = client.get_info_by_id(&node_1).await.unwrap().unwrap();
+        let stored = client
+            .get_node_activity_by_id(&node_1)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(stored.event_logs.len(), node_1_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_1_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
         // Check NodeId 2.
-        let stored = client.get_info_by_id(&node_2).await.unwrap().unwrap();
+        let stored = client
+            .get_node_activity_by_id(&node_2)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(stored.event_logs.len(), node_2_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_2_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
         // Check NodeId 3.
-        let stored = client.get_info_by_id(&node_3).await.unwrap().unwrap();
+        let stored = client
+            .get_node_activity_by_id(&node_3)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(stored.event_logs.len(), node_3_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_3_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
-        //Add new events.
+        //Add new events to NodeId 1.
         let node_1_events_new = [
             MessageEvent::TestMessage(node_1.clone(), "Event F".to_string()),
             MessageEvent::TestMessage(node_1.clone(), "Event G".to_string()),
@@ -194,7 +206,11 @@ mod tests {
         }
 
         // Check NodeId 1.
-        let stored = client.get_info_by_id(&node_1).await.unwrap().unwrap();
+        let stored = client
+            .get_node_activity_by_id(&node_1)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(
             stored.event_logs.len(),
             node_1_events.len() + node_1_events_new.len()
