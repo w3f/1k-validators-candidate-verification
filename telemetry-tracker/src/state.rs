@@ -1,4 +1,4 @@
-use crate::events::{MessageEvent, NodeId, NodeName};
+use crate::events::{NodeId, NodeName, TelemetryEvent};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -45,5 +45,5 @@ impl NodeActivity {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct EventLog {
     pub timestamp: LogTimestamp,
-    pub event: MessageEvent,
+    pub event: TelemetryEvent,
 }

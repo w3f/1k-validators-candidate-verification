@@ -1,4 +1,4 @@
-use crate::events::{MessageEvent, NodeId, NodeName};
+use crate::events::{NodeId, NodeName, TelemetryEvent};
 use crate::state::{EventLog, LogTimestamp, NodeActivity};
 use crate::{Result, ToBson};
 use bson::{from_document, Document};
@@ -54,7 +54,7 @@ impl TelemetryEventStore {
 
         Ok(())
     }
-    pub async fn store_event(&self, event: MessageEvent) -> Result<()> {
+    pub async fn store_event(&self, event: TelemetryEvent) -> Result<()> {
         let node_id = event.node_id();
         let node_name = event.node_name();
 
@@ -121,7 +121,7 @@ impl TelemetryEventStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::{MessageEvent, NodeId};
+    use crate::events::{NodeId, TelemetryEvent};
 
     #[tokio::test]
     async fn store_event() {
@@ -139,18 +139,18 @@ mod tests {
         let node_3 = NodeId::from(3);
 
         let node_1_events = [
-            MessageEvent::TestMessage(node_1.clone(), "Event A".to_string()),
-            MessageEvent::TestMessage(node_1.clone(), "Event B".to_string()),
+            TelemetryEvent::TestMessage(node_1.clone(), "Event A".to_string()),
+            TelemetryEvent::TestMessage(node_1.clone(), "Event B".to_string()),
         ];
 
-        let node_2_events = [MessageEvent::TestMessage(
+        let node_2_events = [TelemetryEvent::TestMessage(
             node_2.clone(),
             "Event C".to_string(),
         )];
 
         let node_3_events = [
-            MessageEvent::TestMessage(node_3.clone(), "Event D".to_string()),
-            MessageEvent::TestMessage(node_3.clone(), "Event E".to_string()),
+            TelemetryEvent::TestMessage(node_3.clone(), "Event D".to_string()),
+            TelemetryEvent::TestMessage(node_3.clone(), "Event E".to_string()),
         ];
 
         // Store all events.
@@ -197,8 +197,8 @@ mod tests {
 
         //Add new events to NodeId 1.
         let node_1_events_new = [
-            MessageEvent::TestMessage(node_1.clone(), "Event F".to_string()),
-            MessageEvent::TestMessage(node_1.clone(), "Event G".to_string()),
+            TelemetryEvent::TestMessage(node_1.clone(), "Event F".to_string()),
+            TelemetryEvent::TestMessage(node_1.clone(), "Event G".to_string()),
         ];
 
         for event in node_1_events_new.iter() {

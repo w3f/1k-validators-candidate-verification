@@ -1,5 +1,5 @@
 use crate::database::MongoClient;
-use crate::events::MessageEvent;
+use crate::events::TelemetryEvent;
 use crate::{database, Result};
 use futures::{SinkExt, StreamExt};
 use std::convert::TryInto;
@@ -63,7 +63,7 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
             while let Some(msg) = stream.next().await {
                 match msg? {
                     Message::Binary(content) => {
-                        if let Ok(events) = MessageEvent::from_json(&content) {
+                        if let Ok(events) = TelemetryEvent::from_json(&content) {
                             for event in events {
                                 store.store_event(event).await?;
                             }
@@ -102,7 +102,7 @@ async fn telemetry() {
     while let Some(msg) = stream.next().await {
         match msg.unwrap() {
             Message::Binary(content) => {
-                if let Ok(events) = MessageEvent::from_json(&content) {
+                if let Ok(events) = TelemetryEvent::from_json(&content) {
                     for event in events {
                         println!("\n\n{}", serde_json::to_string(&event).unwrap());
                     }

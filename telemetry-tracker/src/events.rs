@@ -53,7 +53,7 @@ pub struct DownloadSpeed(Vec<BytesPerSecond>);
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content")]
 #[serde(rename_all = "snake_case")]
-pub enum MessageEvent {
+pub enum TelemetryEvent {
     AddedNode(AddedNodeEvent),
     Hardware(HardwareEvent),
     NodeStats(NodeStatsEvent),
@@ -61,26 +61,26 @@ pub enum MessageEvent {
     TestMessage(NodeId, String),
 }
 
-impl MessageEvent {
+impl TelemetryEvent {
     pub fn node_id(&self) -> &NodeId {
         match self {
-            MessageEvent::AddedNode(event) => &event.node_id,
-            MessageEvent::Hardware(event) => &event.node_id,
-            MessageEvent::NodeStats(event) => &event.node_id,
+            TelemetryEvent::AddedNode(event) => &event.node_id,
+            TelemetryEvent::Hardware(event) => &event.node_id,
+            TelemetryEvent::NodeStats(event) => &event.node_id,
             #[cfg(test)]
-            MessageEvent::TestMessage(node_id, _) => node_id,
+            TelemetryEvent::TestMessage(node_id, _) => node_id,
         }
     }
     pub fn node_name(&self) -> Option<&NodeName> {
         match self {
-            MessageEvent::AddedNode(event) => Some(&event.details.name),
+            TelemetryEvent::AddedNode(event) => Some(&event.details.name),
             _ => None,
         }
     }
 }
 
-impl MessageEvent {
-    pub fn from_json(val: &Vec<u8>) -> Result<Vec<MessageEvent>> {
+impl TelemetryEvent {
+    pub fn from_json(val: &Vec<u8>) -> Result<Vec<TelemetryEvent>> {
         let parsed: Vec<Value> = serde_json::from_slice(val)?;
         let mut index = 0;
 
@@ -96,13 +96,13 @@ impl MessageEvent {
             let payload = parsed[index].clone();
 
             if let Some(event) = match action {
-                3 => Some(MessageEvent::AddedNode(
+                3 => Some(TelemetryEvent::AddedNode(
                     serde_json::from_value::<AddedNodeEventRaw>(payload)?.into(),
                 )),
-                8 => Some(MessageEvent::NodeStats(
+                8 => Some(TelemetryEvent::NodeStats(
                     serde_json::from_value::<NodeStatsEventRaw>(payload)?.into(),
                 )),
-                9 => Some(MessageEvent::Hardware(
+                9 => Some(TelemetryEvent::Hardware(
                     serde_json::from_value::<HardwareEventRaw>(payload)?.into(),
                 )),
                 _ => None,
