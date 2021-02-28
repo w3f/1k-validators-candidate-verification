@@ -4,8 +4,8 @@ use bson::{from_document, Document};
 use futures::{StreamExt, TryStreamExt};
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
-use tokio_tungstenite::tungstenite::Message;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio_tungstenite::tungstenite::Message;
 
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
 
