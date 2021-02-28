@@ -327,10 +327,13 @@ mod tests {
     #[tokio::test]
     async fn get_majority_client_version() {
         // Create client.
-        let client = MongoClient::new("mongodb://localhost:27017/", "test_get_majority_client_version")
-            .await
-            .unwrap()
-            .get_telemetry_event_store();
+        let client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_get_majority_client_version",
+        )
+        .await
+        .unwrap()
+        .get_telemetry_event_store();
 
         client.drop().await;
 
@@ -349,7 +352,7 @@ mod tests {
                 let mut event = AddedNodeEvent::alice();
                 event.details.version = NodeVersion::from("2.0".to_string());
                 event
-            })
+            }),
         ];
 
         for message in &messages {
