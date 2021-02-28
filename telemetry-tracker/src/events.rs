@@ -15,7 +15,7 @@ impl From<i64> for NodeId {
 pub struct NodeName(String);
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NodeImplementation(String);
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct NodeVersion(String);
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Address(String);
@@ -212,21 +212,21 @@ pub struct AddedNodeEventRaw(
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct AddedNodeEvent {
     /// Node identifier
-    node_id: NodeId,
+    pub node_id: NodeId,
     /// Static details
-    details: NodeDetails,
+    pub details: NodeDetails,
     /// Basic stats
-    stats: NodeStats,
+    pub stats: NodeStats,
     /// Node IO stats
-    io: NodeIO,
+    pub io: NodeIO,
     /// Hardware stats over time
-    hardware: NodeHardware,
+    pub hardware: NodeHardware,
     /// Best block
-    best: BlockDetails,
+    pub best: BlockDetails,
     /// Physical location details
-    location: Option<NodeLocation>,
+    pub location: Option<NodeLocation>,
     /// Unix timestamp for when node started up (falls back to connection time)
-    startup_time: Option<Timestamp>,
+    pub startup_time: Option<Timestamp>,
 }
 
 impl From<AddedNodeEventRaw> for AddedNodeEvent {

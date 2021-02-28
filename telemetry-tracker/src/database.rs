@@ -1,9 +1,10 @@
-use crate::events::{NodeId, NodeName, TelemetryEvent};
+use crate::events::{NodeId, NodeName, NodeVersion, TelemetryEvent};
 use crate::{Result, ToBson};
 use bson::{from_document, Document};
 use futures::{StreamExt, TryStreamExt};
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
+use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio_tungstenite::tungstenite::Message;
 
@@ -162,6 +163,56 @@ impl TelemetryEventStore {
         } else {
             Ok(None)
         }
+    }
+    pub async fn get_majority_client_version(&self) -> Result<Option<NodeVersion>> {
+        let mut cursor = self
+            .coll
+            .find(
+                doc! {
+                    "event_logs.event.type": "added_node",
+                    "event_logs.event.content.details.version": {
+                        "$exists": true,
+                    }
+                },
+                None,
+            )
+            .await?;
+
+        let mut observed_versions = HashMap::new();
+        while let Some(doc) = cursor.next().await {
+            let node_activity: NodeActivity = from_document(doc?)?;
+
+            let mut version = None;
+            for log in node_activity.event_logs {
+                match log.event {
+                    TelemetryEvent::AddedNode(event) => {
+                        version = Some(event.details.version);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
+            // Ignore if the version of the node could not be determined.
+            if let Some(version) = version {
+                observed_versions
+                    .entry(version)
+                    .and_modify(|occurences| *occurences += 1)
+                    .or_insert(1);
+            }
+        }
+
+        // Find the client version with the most occurrences.
+        let mut m_version = None;
+        let mut m_occurrences = 0;
+        for (version, occurrences) in observed_versions {
+            if occurrences > m_occurrences {
+                m_version = Some(version);
+                m_occurrences = occurrences;
+            }
+        }
+
+        Ok(m_version)
     }
 }
 
