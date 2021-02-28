@@ -1,11 +1,9 @@
 use crate::Result;
 use sp_arithmetic::Perbill;
 use substrate_subxt::identity::{Data, Identity, IdentityOfStoreExt, Judgement, Registration};
-use substrate_subxt::staking::{PayeeStoreExt, RewardDestination, Staking, ValidatorsStoreExt};
+use substrate_subxt::staking::{PayeeStoreExt, RewardDestination, Staking, ValidatorsStoreExt, LedgerStoreExt};
 use substrate_subxt::{balances::Balances, sp_runtime::SaturatedConversion};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
-
-const MAX_COMMISSION: u32 = 3 * 10_000_000;
 
 pub struct ChainData<R: Runtime> {
     client: Client<R>,
@@ -42,6 +40,7 @@ pub enum Field {
     IdentityInfo,
     RewardDestination,
     Commission,
+    BondedAmound,
 }
 
 pub enum Compliance {
@@ -51,23 +50,28 @@ pub enum Compliance {
 
 use std::marker::PhantomData;
 
-pub struct RequirementsJudgement<T> {
+pub struct RequirementsConfig<Balance> {
+    commission: u32,
+    bonded_amount: Balance,
+}
+
+pub struct RequirementsJudgement<T: Balances> {
     compliances: Vec<Compliance>,
-    _p: PhantomData<T>,
+    config: RequirementsConfig<T::Balance>,
 }
 
 impl<T: Runtime + Balances> RequirementsJudgement<T> {
-    fn new() -> Self {
+    fn new(config: RequirementsConfig<T::Balance>) -> Self {
         RequirementsJudgement {
             compliances: vec![],
-            _p: PhantomData,
+            config: config,
         }
     }
     fn judge_identity(&mut self, identity: Registration<T::Balance>) {
         // Check whether the identity has been judged by a registrar.
         let mut is_judged = false;
         for (_, judgement) in identity.judgements {
-            if judgement == Judgement::Reasonable || judgement == Judgement::Reasonable {
+            if judgement == Judgement::Reasonable || judgement == Judgement::KnownGood {
                 is_judged = true;
                 break;
             }
@@ -100,10 +104,17 @@ impl<T: Runtime + Balances> RequirementsJudgement<T> {
         }
     }
     fn judge_commission(&mut self, commission: Perbill) {
-        if commission.deconstruct() <= MAX_COMMISSION {
-            self.compliances.push(Compliance::Ok(Field::Commission))
+        if commission.deconstruct() <= (self.config.commission * 1_000_000){
+            self.compliances.push(Compliance::Ok(Field::Commission));
         } else {
-            self.compliances.push(Compliance::Err(Field::Commission))
+            self.compliances.push(Compliance::Err(Field::Commission));
+        }
+    }
+    fn judge_bonded_amount(&mut self, amount: T::Balance) {
+        if amount >= self.config.bonded_amount {
+            self.compliances.push(Compliance::Ok(Field::BondedAmound));
+        } else {
+            self.compliances.push(Compliance::Err(Field::BondedAmound));
         }
     }
 }
