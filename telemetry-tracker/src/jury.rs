@@ -1,8 +1,11 @@
 use crate::Result;
+use sp_arithmetic::Perbill;
 use substrate_subxt::identity::{Data, Identity, IdentityOfStoreExt, Judgement, Registration};
-use substrate_subxt::staking::{PayeeStoreExt, RewardDestination, Staking};
+use substrate_subxt::staking::{PayeeStoreExt, RewardDestination, Staking, ValidatorsStoreExt};
 use substrate_subxt::{balances::Balances, sp_runtime::SaturatedConversion};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
+
+const MAX_COMMISSION: u32 = 3 * 10_000_000;
 
 pub struct ChainData<R: Runtime> {
     client: Client<R>,
@@ -35,9 +38,10 @@ impl<R: Runtime + Identity + Staking> ChainData<R> {
 }
 
 pub enum Field {
-    JudgedByRegistrar,
+    RegistrarJudgement,
     IdentityInfo,
     RewardDestination,
+    Commission,
 }
 
 pub enum Compliance {
@@ -72,10 +76,10 @@ impl<T: Runtime + Balances> RequirementsJudgement<T> {
         match is_judged {
             true => self
                 .compliances
-                .push(Compliance::Ok(Field::JudgedByRegistrar)),
+                .push(Compliance::Ok(Field::RegistrarJudgement)),
             false => self
                 .compliances
-                .push(Compliance::Err(Field::JudgedByRegistrar)),
+                .push(Compliance::Err(Field::RegistrarJudgement)),
         }
 
         // Check whether the identity has the display name and email field set.
@@ -93,6 +97,13 @@ impl<T: Runtime + Balances> RequirementsJudgement<T> {
         } else {
             self.compliances
                 .push(Compliance::Ok(Field::RewardDestination));
+        }
+    }
+    fn judge_commission(&mut self, commission: Perbill) {
+        if commission.deconstruct() <= MAX_COMMISSION {
+            self.compliances.push(Compliance::Ok(Field::Commission))
+        } else {
+            self.compliances.push(Compliance::Err(Field::Commission))
         }
     }
 }

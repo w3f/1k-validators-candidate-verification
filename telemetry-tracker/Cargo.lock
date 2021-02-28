@@ -3723,6 +3723,7 @@ dependencies = [
  "mongodb",
  "serde",
  "serde_json",
+ "sp-arithmetic",
  "substrate-subxt",
  "tokio 1.2.0",
  "tokio-tungstenite",
