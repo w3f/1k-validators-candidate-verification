@@ -1,7 +1,9 @@
 use crate::Result;
 use sp_arithmetic::Perbill;
 use substrate_subxt::identity::{Data, Identity, IdentityOfStoreExt, Judgement, Registration};
-use substrate_subxt::staking::{PayeeStoreExt, RewardDestination, Staking, ValidatorsStoreExt, LedgerStoreExt};
+use substrate_subxt::staking::{
+    LedgerStoreExt, PayeeStoreExt, RewardDestination, Staking, ValidatorsStoreExt,
+};
 use substrate_subxt::{balances::Balances, sp_runtime::SaturatedConversion};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
 
@@ -40,7 +42,8 @@ pub enum Field {
     IdentityInfo,
     RewardDestination,
     Commission,
-    BondedAmound,
+    BondedAmount,
+    StashControllerDeviation,
 }
 
 pub enum Compliance {
@@ -104,7 +107,7 @@ impl<T: Runtime + Balances> RequirementsJudgement<T> {
         }
     }
     fn judge_commission(&mut self, commission: Perbill) {
-        if commission.deconstruct() <= (self.config.commission * 1_000_000){
+        if commission.deconstruct() <= (self.config.commission * 1_000_000) {
             self.compliances.push(Compliance::Ok(Field::Commission));
         } else {
             self.compliances.push(Compliance::Err(Field::Commission));
@@ -112,9 +115,18 @@ impl<T: Runtime + Balances> RequirementsJudgement<T> {
     }
     fn judge_bonded_amount(&mut self, amount: T::Balance) {
         if amount >= self.config.bonded_amount {
-            self.compliances.push(Compliance::Ok(Field::BondedAmound));
+            self.compliances.push(Compliance::Ok(Field::BondedAmount));
         } else {
-            self.compliances.push(Compliance::Err(Field::BondedAmound));
+            self.compliances.push(Compliance::Err(Field::BondedAmount));
+        }
+    }
+    fn judge_stash_controller_deviation(&mut self, stash: T::AccountId, controller: T::AccountId) {
+        if stash != controller {
+            self.compliances
+                .push(Compliance::Ok(Field::StashControllerDeviation));
+        } else {
+            self.compliances
+                .push(Compliance::Err(Field::StashControllerDeviation));
         }
     }
 }
