@@ -24,9 +24,9 @@ pub struct BlockTime(Milliseconds);
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize, Serialize)]
 pub struct NetworkId(String);
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize, Serialize)]
-pub struct PeerCount(usize);
+pub struct PeerCount(i64);
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize, Serialize)]
-pub struct TransactionCount(usize);
+pub struct TransactionCount(i64);
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize, Serialize)]
 pub struct Milliseconds(i64);
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize, Serialize)]
@@ -356,16 +356,52 @@ mod tests {
         }
     }
 
+    impl From<String> for NodeVersion {
+        fn from(val: String) -> Self {
+            NodeVersion(val)
+        }
+    }
+
     impl AddedNodeEvent {
-        fn alice() -> Self {
+        pub fn alice() -> Self {
             AddedNodeEvent {
                 node_id: NodeId(1),
-                details: NodeDetails {
-                    name: NodeName("Alice".to_string()),
-                    implementation: NodeImplementation("substrate".to_string()),
-                    version: NodeVersion("1.0.0".to_string()),
-                    address: Some(Address("".to_string())),
-                    network_id: Some(NetworkId("".to_string())),
+                details: {
+                    let mut details = NodeDetails::default();
+                    details.name = NodeName("Alice".to_string());
+                    details
+                },
+                stats: Default::default(),
+                io: Default::default(),
+                hardware: Default::default(),
+                best: Default::default(),
+                location: Default::default(),
+                startup_time: Default::default(),
+            }
+        }
+        pub fn bob() -> Self {
+            AddedNodeEvent {
+                node_id: NodeId(1),
+                details: {
+                    let mut details = NodeDetails::default();
+                    details.name = NodeName("Bob".to_string());
+                    details
+                },
+                stats: Default::default(),
+                io: Default::default(),
+                hardware: Default::default(),
+                best: Default::default(),
+                location: Default::default(),
+                startup_time: Default::default(),
+            }
+        }
+        pub fn eve() -> Self {
+            AddedNodeEvent {
+                node_id: NodeId(1),
+                details: {
+                    let mut details = NodeDetails::default();
+                    details.name = NodeName("Eve".to_string());
+                    details
                 },
                 stats: Default::default(),
                 io: Default::default(),
