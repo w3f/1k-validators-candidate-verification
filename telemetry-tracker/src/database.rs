@@ -219,7 +219,7 @@ impl TelemetryEventStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::{NodeId, TelemetryEvent};
+    use crate::events::{AddedNodeEvent, NodeDetails, NodeId, NodeImplementation, TelemetryEvent};
 
     #[tokio::test]
     async fn store_event() {
@@ -320,6 +320,17 @@ mod tests {
         {
             assert_eq!(&log.event, expected);
         }
+
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn get_majority_client_version() {
+        // Create client.
+        let client = MongoClient::new("mongodb://localhost:27017/", "test_db")
+            .await
+            .unwrap()
+            .get_telemetry_event_store();
 
         client.drop().await;
     }
