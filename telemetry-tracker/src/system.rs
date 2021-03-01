@@ -1,12 +1,12 @@
-use crate::{Result, jury::RequirementsConfig};
 use crate::database::MongoClient;
 use crate::events::TelemetryEvent;
 use crate::judge::RequirementsProceeding;
-use substrate_subxt::Runtime;
+use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
+use std::convert::TryInto;
+use substrate_subxt::Runtime;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use std::convert::TryInto;
 
 pub enum Chain {
     Polkadot,
@@ -106,7 +106,7 @@ pub struct RequirementsProceedingConfig {
     candidates: Vec<Candidate>,
 }
 
-use substrate_subxt::{KusamaRuntime, DefaultNodeRuntime};
+use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 
 async fn run_requirements_proceeding<T>(config: RequirementsProceedingConfig) -> Result<()> {
     info!("Opening MongoDB client");
@@ -114,17 +114,32 @@ async fn run_requirements_proceeding<T>(config: RequirementsProceedingConfig) ->
         .await?
         .get_telemetry_event_store();
 
-
     match config.chain {
         Chain::Polkadot => {
-            let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(&config.rpc_hostname).await?;
+            let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(
+                &config.rpc_hostname,
+                config.requirements_config,
+            )
+            .await?;
 
             for candidate in config.candidates {
-                proceeding.proceed_requirements(candidate.try_into()?, config.requirements_config).await?;
+                proceeding
+                    .proceed_requirements(candidate.try_into()?)
+                    .await?;
             }
         }
         Chain::Kusama => {
-            let proceeding = RequirementsProceeding::<KusamaRuntime>::new(&config.rpc_hostname).await;
+            let proceeding = RequirementsProceeding::<KusamaRuntime>::new(
+                &config.rpc_hostname,
+                config.requirements_config,
+            )
+            .await?;
+
+            for candidate in config.candidates {
+                proceeding
+                    .proceed_requirements(candidate.try_into()?)
+                    .await?;
+            }
         }
     }
 

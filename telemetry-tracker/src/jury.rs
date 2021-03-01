@@ -35,14 +35,17 @@ pub struct RequirementsJudgementReport<T> {
     compliances: Vec<Compliance>,
 }
 
-pub struct RequirementsJudgement<T: Runtime + Balances> {
+pub struct RequirementsJudgement<'a, T: Runtime + Balances> {
     candidate: NetworkAccount<T::AccountId>,
     compliances: Vec<Compliance>,
-    config: RequirementsConfig<T::Balance>,
+    config: &'a RequirementsConfig<T::Balance>,
 }
 
-impl<T: Runtime + Balances> RequirementsJudgement<T> {
-    pub fn new(candidate: NetworkAccount<T::AccountId>, config: RequirementsConfig<T::Balance>) -> Self {
+impl<'a, T: Runtime + Balances> RequirementsJudgement<'a, T> {
+    pub fn new(
+        candidate: NetworkAccount<T::AccountId>,
+        config: &'a RequirementsConfig<T::Balance>,
+    ) -> Self {
         RequirementsJudgement {
             candidate: candidate,
             compliances: vec![],

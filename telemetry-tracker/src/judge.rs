@@ -1,14 +1,17 @@
-use crate::{events::NetworkId, jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport}};
 use crate::system::Candidate;
 use crate::Result;
+use crate::{
+    events::NetworkId,
+    jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport},
+};
+use std::convert::TryFrom;
 use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Identity, IdentityOfStoreExt};
+use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
 use substrate_subxt::staking::{
     BondedStoreExt, LedgerStoreExt, PayeeStoreExt, Staking, ValidatorsStoreExt,
 };
-use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
-use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NetworkAccount<T>(T);
@@ -32,30 +35,38 @@ impl TryFrom<Candidate> for NetworkAccount<AccountId32> {
     type Error = anyhow::Error;
 
     fn try_from(val: Candidate) -> Result<Self> {
-        Ok(NetworkAccount(AccountId32::from_ss58check(val.stash_str()).map_err(|err| anyhow!("Failed to convert presumed SS58 string into a NetworkAccount"))?))
+        Ok(NetworkAccount(
+            AccountId32::from_ss58check(val.stash_str()).map_err(|err| {
+                anyhow!("Failed to convert presumed SS58 string into a NetworkAccount")
+            })?,
+        ))
     }
 }
 
 #[allow(dead_code)]
-pub struct RequirementsProceeding<T: Runtime> {
+pub struct RequirementsProceeding<T: Runtime + Balances> {
     client: Client<T>,
+    requirements: RequirementsConfig<T::Balance>,
 }
 
 impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T> {
-    pub async fn new(rpc_hostname: &str) -> Result<Self> {
+    pub async fn new(
+        rpc_hostname: &str,
+        requirements: RequirementsConfig<T::Balance>,
+    ) -> Result<Self> {
         Ok(RequirementsProceeding {
             client: ClientBuilder::<T>::new()
                 .set_url(rpc_hostname)
                 .build()
                 .await?,
+            requirements: requirements,
         })
     }
     pub async fn proceed_requirements(
         &self,
         candidate: NetworkAccount<T::AccountId>,
-        requirements: RequirementsConfig<T::Balance>,
     ) -> Result<RequirementsJudgementReport<T::AccountId>> {
-        let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), requirements);
+        let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), &self.requirements);
 
         // Requirement: Identity.
         let identity = self.client.identity_of(candidate.to_stash(), None).await?;
