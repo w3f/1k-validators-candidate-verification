@@ -5,6 +5,7 @@ use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use std::convert::TryInto;
 use substrate_subxt::{sp_runtime::AccountId32, Runtime};
+use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -120,9 +121,7 @@ pub struct RequirementsProceedingConfig {
     candidates: Vec<Candidate>,
 }
 
-use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
-
-async fn run_requirements_proceeding<T>(config: RequirementsProceedingConfig) -> Result<()> {
+async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Result<()> {
     match config.chain {
         Chain::Polkadot => {
             let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(
@@ -135,8 +134,6 @@ async fn run_requirements_proceeding<T>(config: RequirementsProceedingConfig) ->
                 let report = proceeding
                     .proceed_requirements(candidate.try_into()?)
                     .await?;
-
-                println!("\n{}", serde_json::to_string_pretty(&report)?);
             }
         }
         Chain::Kusama => {
@@ -190,12 +187,14 @@ async fn telemetry() {
 
 #[tokio::test]
 async fn requirements_proceeding() {
+    //env_logger::init();
+
     let config = RequirementsProceedingConfig {
         enabled: true,
         db_uri: "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
         db_name: "test_candidate_requirements".to_string(),
         chain: Chain::Kusama,
-        rpc_hostname: "".to_string(),
+        rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
         requirements_config: RequirementsConfig {
             commission: 10,
             bonded_amount: 10000,
@@ -205,4 +204,6 @@ async fn requirements_proceeding() {
             Chain::Kusama,
         ))],
     };
+
+    run_requirements_proceeding(config).await.unwrap();
 }

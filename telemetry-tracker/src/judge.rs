@@ -96,23 +96,29 @@ where
     ) -> Result<RequirementsJudgementReport> {
         let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), &self.requirements);
 
+        println!("GOT HERE");
         // Requirement: Identity.
+        debug!("Checking identity requirement");
         let identity = self.client.identity_of(candidate.to_stash(), None).await?;
         jury.judge_identity(identity);
 
         // Requirement: Reward destination.
+        debug!("Checking reward destination requirement");
         let desination = self.client.payee(candidate.to_stash(), None).await?;
         jury.judge_reward_destination(desination);
 
         // Requirement: Commission.
+        debug!("Checking commission requirement");
         let prefs = self.client.validators(candidate.to_stash(), None).await?;
         jury.judge_commission(prefs.commission);
 
         // Requirement: Controller set.
+        debug!("Checking controller requirement");
         let controller = self.client.bonded(candidate.to_stash(), None).await?;
         jury.judge_stash_controller_deviation(&controller);
 
         // Requirement: Bonded amount.
+        debug!("Checking bonded amount requirement");
         if let Some(controller) = controller {
             let ledger = self.client.ledger(controller, None).await?;
             jury.judge_bonded_amount(ledger);

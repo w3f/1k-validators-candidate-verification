@@ -29,8 +29,8 @@ pub enum Compliance {
 }
 
 pub struct RequirementsConfig<Balance> {
-    commission: u32,
-    bonded_amount: Balance,
+    pub commission: u32,
+    pub bonded_amount: Balance,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
