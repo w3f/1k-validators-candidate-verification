@@ -62,10 +62,6 @@ impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T> {
             jury.judge_bonded_amount(None);
         }
 
-        // Requirement: Client version.
-
-        // Requirement: Uptime.
-
         Ok(())
     }
 }

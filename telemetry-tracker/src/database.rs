@@ -214,6 +214,27 @@ impl TelemetryEventStore {
 
         Ok(m_version)
     }
+    pub async fn get_observed_names(&self) -> Result<Vec<NodeName>> {
+        let mut cursor = self
+            .coll
+            .find(
+                doc! {
+                    "node_name": {
+                        "$exists": true,
+                    },
+                    "node_name": 1
+                },
+                None,
+            )
+            .await?;
+
+        let mut names = vec![];
+        while let Some(doc) = cursor.next().await {
+            names.push(from_document(doc?)?);
+        }
+
+        Ok(names)
+    }
 }
 
 #[cfg(test)]
@@ -266,6 +287,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(stored.event_logs.len(), node_1_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_1_events.iter()) {
             assert_eq!(&log.event, expected);
@@ -277,6 +299,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(stored.event_logs.len(), node_2_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_2_events.iter()) {
             assert_eq!(&log.event, expected);
@@ -288,6 +311,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(stored.event_logs.len(), node_3_events.len());
         for (log, expected) in stored.event_logs.iter().zip(node_3_events.iter()) {
             assert_eq!(&log.event, expected);
@@ -309,10 +333,12 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(
             stored.event_logs.len(),
             node_1_events.len() + node_1_events_new.len()
         );
+
         for (log, expected) in stored
             .event_logs
             .iter()
