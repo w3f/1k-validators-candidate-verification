@@ -1,4 +1,4 @@
-use crate::events::{NodeId, NodeName, NodeVersion, TelemetryEvent};
+use crate::{events::{NodeId, NodeName, NodeVersion, TelemetryEvent}, jury::RequirementsJudgementReport, system::Candidate};
 use crate::{Result, ToBson};
 use bson::from_document;
 use futures::StreamExt;
@@ -7,6 +7,7 @@ use mongodb::{Client, Collection, Database};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_states";
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -56,6 +57,13 @@ pub struct EventLog {
     pub event: TelemetryEvent,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CandidateState {
+    pub candidate: Candidate,
+    pub last_requirements_report: LogTimestamp,
+    pub requirements_report: Vec<RequirementsJudgementReport>,
+}
+
 pub struct MongoClient {
     db: Database,
 }
@@ -66,11 +74,20 @@ impl MongoClient {
             db: Client::with_uri_str(uri).await?.database(db),
         })
     }
+    pub fn get_candidate_state_store(&self) -> CandidateStateStore {
+        CandidateStateStore {
+            coll: self.db.collection(CANDIDATE_STATE_STORE_COLLECTION),
+        }
+    }
     pub fn get_telemetry_event_store(&self) -> TelemetryEventStore {
         TelemetryEventStore {
             coll: self.db.collection(TELEMETRY_EVENT_STORE_COLLECTION),
         }
     }
+}
+
+pub struct CandidateStateStore {
+    coll: Collection,
 }
 
 pub struct TelemetryEventStore {
