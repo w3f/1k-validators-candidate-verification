@@ -36,7 +36,8 @@ pub struct RequirementsConfig<Balance> {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RequirementsJudgementReport {
-    candidate: Candidate,
+    // TODO: Remove
+    pub candidate: Candidate,
     compliances: Vec<Compliance>,
 }
 

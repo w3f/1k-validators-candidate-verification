@@ -1,4 +1,8 @@
-use crate::{events::{NodeId, NodeName, NodeVersion, TelemetryEvent}, jury::RequirementsJudgementReport, system::Candidate};
+use crate::{
+    events::{NodeId, NodeName, NodeVersion, TelemetryEvent},
+    jury::RequirementsJudgementReport,
+    system::Candidate,
+};
 use crate::{Result, ToBson};
 use bson::from_document;
 use futures::StreamExt;
@@ -35,7 +39,7 @@ pub struct NodeActivity {
     pub stash: Option<RegisteredStash>,
     pub controller: Option<RegisteredController>,
     pub last_event_log: LogTimestamp,
-    pub event_logs: Vec<EventLog>,
+    pub event_logs: Vec<EventLog<TelemetryEvent>>,
 }
 
 impl NodeActivity {
@@ -52,16 +56,26 @@ impl NodeActivity {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct EventLog {
+pub struct EventLog<T> {
     pub timestamp: LogTimestamp,
-    pub event: TelemetryEvent,
+    pub event: T,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CandidateState {
     pub candidate: Candidate,
     pub last_requirements_report: LogTimestamp,
-    pub requirements_report: Vec<RequirementsJudgementReport>,
+    pub requirements_report: Vec<EventLog<RequirementsJudgementReport>>,
+}
+
+impl CandidateState {
+    fn new(candidate: Candidate) -> Self {
+        CandidateState {
+            candidate: candidate,
+            last_requirements_report: LogTimestamp::new(),
+            requirements_report: vec![],
+        }
+    }
 }
 
 pub struct MongoClient {
@@ -90,6 +104,58 @@ pub struct CandidateStateStore {
     coll: Collection,
 }
 
+impl CandidateStateStore {
+    #[cfg(test)]
+    async fn drop(&self) {
+        self.coll.drop(None).await.unwrap();
+    }
+    // TODO: Is this necessary?
+    async fn insert_candidate_state(&self, candidate: &Candidate) -> Result<()> {
+        self.coll
+            .update_one(
+                doc! {
+                    "candidate": candidate.to_bson()?,
+                },
+                doc! {
+                    "$setOnInsert": CandidateState::new(candidate.clone()).to_bson()?,
+                },
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
+            )
+            .await?;
+
+        Ok(())
+    }
+    async fn store_requirements_report(&self, report: RequirementsJudgementReport) -> Result<()> {
+        self.insert_candidate_state(&report.candidate).await?;
+
+        self.coll
+            .update_one(
+                doc! {
+                    "candidate": report.candidate.to_bson()?,
+                },
+                doc! {
+                    "$set": {
+                        "last_requirements_report": LogTimestamp::new().to_bson()?,
+                    },
+                    "$push": {
+                        "requirements_report": EventLog {
+                            timestamp: LogTimestamp::new(),
+                            event: report,
+                        }.to_bson()?,
+                    }
+                },
+                None,
+            )
+            .await?;
+
+        Ok(())
+    }
+}
+
 pub struct TelemetryEventStore {
     coll: Collection,
 }
@@ -99,6 +165,7 @@ impl TelemetryEventStore {
     async fn drop(&self) {
         self.coll.drop(None).await.unwrap();
     }
+    // TODO: Is this necessary?
     async fn insert_node_info(&self, node_id: &NodeId, node_name: Option<&NodeName>) -> Result<()> {
         self.coll
             .update_one(
