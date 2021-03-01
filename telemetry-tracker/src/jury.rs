@@ -1,42 +1,13 @@
 use crate::Result;
 use sp_arithmetic::Perbill;
+use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Data, Identity, IdentityOfStoreExt, Judgement, Registration};
-use substrate_subxt::staking::{
-    LedgerStoreExt, PayeeStoreExt, RewardDestination, Staking, StakingLedger, ValidatorsStoreExt,
-};
-use substrate_subxt::{balances::Balances, sp_runtime::SaturatedConversion};
+use substrate_subxt::staking::{RewardDestination, Staking, StakingLedger};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
 
-pub struct ChainData<R: Runtime> {
-    client: Client<R>,
-}
-
-impl<R: Runtime + Identity + Staking> ChainData<R> {
-    pub async fn new(hostname: &str) -> Result<ChainData<R>> {
-        Ok(ChainData {
-            client: ClientBuilder::<R>::new().set_url(hostname).build().await?,
-        })
-    }
-    pub async fn get_identity(
-        &self,
-        account: R::AccountId,
-    ) -> Result<Option<Registration<R::Balance>>> {
-        self.client
-            .identity_of(account, None)
-            .await
-            .map_err(|err| err.into())
-    }
-    pub async fn get_payee(
-        &self,
-        account: R::AccountId,
-    ) -> Result<RewardDestination<R::AccountId>> {
-        self.client
-            .payee(account, None)
-            .await
-            .map_err(|err| err.into())
-    }
-}
-
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "type", content = "content")]
+#[serde(rename_all = "snake_case")]
 pub enum Field {
     IdentityFound,
     RegistrarJudgement,
