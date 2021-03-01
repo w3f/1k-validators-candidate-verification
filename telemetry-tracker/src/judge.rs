@@ -19,6 +19,7 @@ impl<T: Clone> Candidate<T> {
     }
 }
 
+#[allow(dead_code)]
 pub struct RequirementsProceeding<T: Runtime> {
     client: Client<T>,
 }

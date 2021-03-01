@@ -7,20 +7,15 @@ extern crate anyhow;
 #[macro_use]
 extern crate bson;
 
-use bson::de::from_document;
 use bson::ser::to_bson;
-use bson::{Bson, Document};
-use serde::de::{Deserialize, DeserializeOwned};
+use bson::Bson;
 use serde::ser::Serialize;
-use std::convert::TryInto;
 
 mod database;
 mod events;
 mod judge;
 mod jury;
 mod system;
-
-const DEFAULT_TELEMETRY: &'static str = "wss://telemetry-backend.w3f.community/feed";
 
 type Result<T> = std::result::Result<T, anyhow::Error>;
 

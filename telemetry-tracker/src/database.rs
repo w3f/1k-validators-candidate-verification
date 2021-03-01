@@ -1,12 +1,11 @@
 use crate::events::{NodeId, NodeName, NodeVersion, TelemetryEvent};
 use crate::{Result, ToBson};
-use bson::{from_document, Document};
-use futures::{StreamExt, TryStreamExt};
+use bson::from_document;
+use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio_tungstenite::tungstenite::Message;
 
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
 

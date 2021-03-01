@@ -1,8 +1,8 @@
 use crate::database::MongoClient;
 use crate::events::TelemetryEvent;
-use crate::{database, Result};
+use crate::Result;
 use futures::{SinkExt, StreamExt};
-use std::convert::TryInto;
+
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 

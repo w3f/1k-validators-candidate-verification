@@ -1,9 +1,9 @@
-use crate::{judge::Candidate, Result};
+use crate::judge::Candidate;
 use sp_arithmetic::Perbill;
 use substrate_subxt::balances::Balances;
-use substrate_subxt::identity::{Data, Identity, IdentityOfStoreExt, Judgement, Registration};
-use substrate_subxt::staking::{RewardDestination, Staking, StakingLedger};
-use substrate_subxt::{Client, ClientBuilder, Runtime};
+use substrate_subxt::identity::{Data, Judgement, Registration};
+use substrate_subxt::staking::{RewardDestination, StakingLedger};
+use substrate_subxt::Runtime;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content")]
