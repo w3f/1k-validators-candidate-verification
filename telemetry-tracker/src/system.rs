@@ -1,12 +1,14 @@
+use crate::{Result, jury::RequirementsConfig};
 use crate::database::MongoClient;
 use crate::events::TelemetryEvent;
-use crate::Result;
+use crate::judge::RequirementsProceeding;
+use substrate_subxt::Runtime;
 use futures::{SinkExt, StreamExt};
-
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
+use std::convert::TryInto;
 
-enum Chain {
+pub enum Chain {
     Polkadot,
     Kusama,
 }
@@ -80,6 +82,51 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
 
         error!("Exiting telemetry watcher task: {:?}", local().await);
     });
+
+    Ok(())
+}
+
+pub struct Candidate {
+    stash: String,
+}
+
+impl Candidate {
+    pub fn stash_str(&self) -> &str {
+        self.stash.as_str()
+    }
+}
+
+pub struct RequirementsProceedingConfig {
+    enabled: bool,
+    db_uri: String,
+    db_name: String,
+    chain: Chain,
+    rpc_hostname: String,
+    requirements_config: RequirementsConfig<u128>,
+    candidates: Vec<Candidate>,
+}
+
+use substrate_subxt::{KusamaRuntime, DefaultNodeRuntime};
+
+async fn run_requirements_proceeding<T>(config: RequirementsProceedingConfig) -> Result<()> {
+    info!("Opening MongoDB client");
+    let client = MongoClient::new(&config.db_uri, &config.db_name)
+        .await?
+        .get_telemetry_event_store();
+
+
+    match config.chain {
+        Chain::Polkadot => {
+            let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(&config.rpc_hostname).await?;
+
+            for candidate in config.candidates {
+                proceeding.proceed_requirements(candidate.try_into()?, config.requirements_config).await?;
+            }
+        }
+        Chain::Kusama => {
+            let proceeding = RequirementsProceeding::<KusamaRuntime>::new(&config.rpc_hostname).await;
+        }
+    }
 
     Ok(())
 }

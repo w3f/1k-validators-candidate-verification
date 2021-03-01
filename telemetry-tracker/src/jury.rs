@@ -1,4 +1,4 @@
-use crate::judge::Candidate;
+use crate::judge::NetworkAccount;
 use sp_arithmetic::Perbill;
 use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Data, Judgement, Registration};
@@ -31,18 +31,18 @@ pub struct RequirementsConfig<Balance> {
 }
 
 pub struct RequirementsJudgementReport<T> {
-    pub candidate: Candidate<T>,
+    pub candidate: NetworkAccount<T>,
     compliances: Vec<Compliance>,
 }
 
 pub struct RequirementsJudgement<T: Runtime + Balances> {
-    candidate: Candidate<T::AccountId>,
+    candidate: NetworkAccount<T::AccountId>,
     compliances: Vec<Compliance>,
     config: RequirementsConfig<T::Balance>,
 }
 
 impl<T: Runtime + Balances> RequirementsJudgement<T> {
-    pub fn new(candidate: Candidate<T::AccountId>, config: RequirementsConfig<T::Balance>) -> Self {
+    pub fn new(candidate: NetworkAccount<T::AccountId>, config: RequirementsConfig<T::Balance>) -> Self {
         RequirementsJudgement {
             candidate: candidate,
             compliances: vec![],
