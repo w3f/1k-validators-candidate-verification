@@ -1,13 +1,15 @@
-use crate::database::MongoClient;
 use crate::events::TelemetryEvent;
 use crate::judge::RequirementsProceeding;
+use crate::{database::MongoClient, judge::NetworkAccount};
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use std::convert::TryInto;
-use substrate_subxt::Runtime;
+use substrate_subxt::{sp_runtime::AccountId32, Runtime};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Chain {
     Polkadot,
     Kusama,
@@ -86,8 +88,20 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct Candidate {
     stash: String,
+    chain: Chain,
+}
+
+impl From<(String, Chain)> for Candidate {
+    fn from(val: (String, Chain)) -> Self {
+        Candidate {
+            stash: val.0,
+            chain: val.1,
+        }
+    }
 }
 
 impl Candidate {
@@ -109,11 +123,6 @@ pub struct RequirementsProceedingConfig {
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 
 async fn run_requirements_proceeding<T>(config: RequirementsProceedingConfig) -> Result<()> {
-    info!("Opening MongoDB client");
-    let client = MongoClient::new(&config.db_uri, &config.db_name)
-        .await?
-        .get_telemetry_event_store();
-
     match config.chain {
         Chain::Polkadot => {
             let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(
@@ -123,9 +132,11 @@ async fn run_requirements_proceeding<T>(config: RequirementsProceedingConfig) ->
             .await?;
 
             for candidate in config.candidates {
-                proceeding
+                let report = proceeding
                     .proceed_requirements(candidate.try_into()?)
                     .await?;
+
+                println!("\n{}", serde_json::to_string_pretty(&report)?);
             }
         }
         Chain::Kusama => {
@@ -175,4 +186,23 @@ async fn telemetry() {
             _ => {}
         }
     }
+}
+
+#[tokio::test]
+async fn requirements_proceeding() {
+    let config = RequirementsProceedingConfig {
+        enabled: true,
+        db_uri: "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
+        db_name: "test_candidate_requirements".to_string(),
+        chain: Chain::Kusama,
+        rpc_hostname: "".to_string(),
+        requirements_config: RequirementsConfig {
+            commission: 10,
+            bonded_amount: 10000,
+        },
+        candidates: vec![Candidate::from((
+            "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
+            Chain::Kusama,
+        ))],
+    };
 }

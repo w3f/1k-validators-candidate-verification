@@ -1,16 +1,17 @@
-use crate::system::Candidate;
+use crate::system::{Candidate, Chain};
 use crate::Result;
 use crate::{
     events::NetworkId,
     jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport},
 };
 use std::convert::TryFrom;
-use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Identity, IdentityOfStoreExt};
-use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
+use substrate_subxt::sp_core::crypto::{AccountId32, Ss58AddressFormat, Ss58Codec};
 use substrate_subxt::staking::{
     BondedStoreExt, LedgerStoreExt, PayeeStoreExt, Staking, ValidatorsStoreExt,
 };
+use substrate_subxt::system::System;
+use substrate_subxt::{balances::Balances, DefaultNodeRuntime, KusamaRuntime};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -22,6 +23,30 @@ impl<T: Clone> NetworkAccount<T> {
     }
     pub fn to_stash(&self) -> T {
         self.0.clone()
+    }
+}
+
+pub trait ToCandidate<T> {
+    fn to_candidate(self) -> Candidate;
+}
+
+impl ToCandidate<DefaultNodeRuntime> for NetworkAccount<<DefaultNodeRuntime as System>::AccountId> {
+    fn to_candidate(self) -> Candidate {
+        Candidate::from((
+            self.raw()
+                .to_ss58check_with_version(Ss58AddressFormat::PolkadotAccount),
+            Chain::Polkadot,
+        ))
+    }
+}
+
+impl ToCandidate<KusamaRuntime> for NetworkAccount<<KusamaRuntime as System>::AccountId> {
+    fn to_candidate(self) -> Candidate {
+        Candidate::from((
+            self.raw()
+                .to_ss58check_with_version(Ss58AddressFormat::KusamaAccount),
+            Chain::Kusama,
+        ))
     }
 }
 
@@ -49,7 +74,10 @@ pub struct RequirementsProceeding<T: Runtime + Balances> {
     requirements: RequirementsConfig<T::Balance>,
 }
 
-impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T> {
+impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T>
+where
+    NetworkAccount<T::AccountId>: ToCandidate<T>,
+{
     pub async fn new(
         rpc_hostname: &str,
         requirements: RequirementsConfig<T::Balance>,
@@ -65,7 +93,7 @@ impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T> {
     pub async fn proceed_requirements(
         &self,
         candidate: NetworkAccount<T::AccountId>,
-    ) -> Result<RequirementsJudgementReport<T::AccountId>> {
+    ) -> Result<RequirementsJudgementReport> {
         let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), &self.requirements);
 
         // Requirement: Identity.

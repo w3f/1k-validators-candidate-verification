@@ -1,12 +1,12 @@
-use crate::judge::NetworkAccount;
+use crate::judge::{NetworkAccount, ToCandidate};
+use crate::system::Candidate;
 use sp_arithmetic::Perbill;
-use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Data, Judgement, Registration};
 use substrate_subxt::staking::{RewardDestination, StakingLedger};
 use substrate_subxt::Runtime;
+use substrate_subxt::{balances::Balances, sp_runtime::AccountId32};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "type", content = "content")]
 #[serde(rename_all = "snake_case")]
 pub enum Field {
     IdentityFound,
@@ -20,6 +20,9 @@ pub enum Field {
     BondedAmount,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "type", content = "content")]
+#[serde(rename_all = "snake_case")]
 pub enum Compliance {
     Ok(Field),
     Err(Field),
@@ -30,8 +33,10 @@ pub struct RequirementsConfig<Balance> {
     bonded_amount: Balance,
 }
 
-pub struct RequirementsJudgementReport<T> {
-    pub candidate: NetworkAccount<T>,
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RequirementsJudgementReport {
+    candidate: Candidate,
     compliances: Vec<Compliance>,
 }
 
@@ -41,7 +46,10 @@ pub struct RequirementsJudgement<'a, T: Runtime + Balances> {
     config: &'a RequirementsConfig<T::Balance>,
 }
 
-impl<'a, T: Runtime + Balances> RequirementsJudgement<'a, T> {
+impl<'a, T: Runtime + Balances> RequirementsJudgement<'a, T>
+where
+    NetworkAccount<T::AccountId>: ToCandidate<T>,
+{
     pub fn new(
         candidate: NetworkAccount<T::AccountId>,
         config: &'a RequirementsConfig<T::Balance>,
@@ -52,9 +60,9 @@ impl<'a, T: Runtime + Balances> RequirementsJudgement<'a, T> {
             config: config,
         }
     }
-    pub fn generate_report(self) -> RequirementsJudgementReport<T::AccountId> {
+    pub fn generate_report(self) -> RequirementsJudgementReport {
         RequirementsJudgementReport {
-            candidate: self.candidate,
+            candidate: ToCandidate::<T>::to_candidate(self.candidate),
             compliances: self.compliances,
         }
     }
