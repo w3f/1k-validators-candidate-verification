@@ -1,4 +1,4 @@
-use crate::Result;
+use crate::{judge::Candidate, Result};
 use sp_arithmetic::Perbill;
 use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Data, Identity, IdentityOfStoreExt, Judgement, Registration};
@@ -30,16 +30,29 @@ pub struct RequirementsConfig<Balance> {
     bonded_amount: Balance,
 }
 
-pub struct RequirementsJudgement<T: Balances> {
+pub struct RequirementsJudgementReport<T> {
+    pub candidate: Candidate<T>,
+    compliances: Vec<Compliance>,
+}
+
+pub struct RequirementsJudgement<T: Runtime + Balances> {
+    candidate: Candidate<T::AccountId>,
     compliances: Vec<Compliance>,
     config: RequirementsConfig<T::Balance>,
 }
 
 impl<T: Runtime + Balances> RequirementsJudgement<T> {
-    pub fn new(config: RequirementsConfig<T::Balance>) -> Self {
+    pub fn new(candidate: Candidate<T::AccountId>, config: RequirementsConfig<T::Balance>) -> Self {
         RequirementsJudgement {
+            candidate: candidate,
             compliances: vec![],
             config: config,
+        }
+    }
+    pub fn generate_report(self) -> RequirementsJudgementReport<T::AccountId> {
+        RequirementsJudgementReport {
+            candidate: self.candidate,
+            compliances: self.compliances,
         }
     }
     pub fn judge_identity(&mut self, identity: Option<Registration<T::Balance>>) {
@@ -99,11 +112,7 @@ impl<T: Runtime + Balances> RequirementsJudgement<T> {
             self.compliances.push(Compliance::Err(Field::Commission));
         }
     }
-    pub fn judge_stash_controller_deviation(
-        &mut self,
-        stash: &T::AccountId,
-        controller: &Option<T::AccountId>,
-    ) {
+    pub fn judge_stash_controller_deviation(&mut self, controller: &Option<T::AccountId>) {
         let controller = if let Some(controller) = controller {
             self.compliances
                 .push(Compliance::Ok(Field::ControllerFound));
@@ -114,7 +123,7 @@ impl<T: Runtime + Balances> RequirementsJudgement<T> {
             return;
         };
 
-        if stash != controller {
+        if self.candidate.raw() != controller {
             self.compliances
                 .push(Compliance::Ok(Field::StashControllerDeviation));
         } else {

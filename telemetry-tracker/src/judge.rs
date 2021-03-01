@@ -1,4 +1,4 @@
-use crate::jury::{RequirementsConfig, RequirementsJudgement};
+use crate::jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport};
 use crate::Result;
 use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Identity, IdentityOfStoreExt};
@@ -7,13 +7,14 @@ use substrate_subxt::staking::{
 };
 use substrate_subxt::{Client, ClientBuilder, Runtime};
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Candidate<T>(T);
 
 impl<T: Clone> Candidate<T> {
-    fn raw(&self) -> &T {
+    pub fn raw(&self) -> &T {
         &self.0
     }
-    fn to_stash(&self) -> T {
+    pub fn to_stash(&self) -> T {
         self.0.clone()
     }
 }
@@ -35,8 +36,8 @@ impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T> {
         &self,
         candidate: Candidate<T::AccountId>,
         requirements: RequirementsConfig<T::Balance>,
-    ) -> Result<()> {
-        let mut jury = RequirementsJudgement::<T>::new(requirements);
+    ) -> Result<RequirementsJudgementReport<T::AccountId>> {
+        let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), requirements);
 
         // Requirement: Identity.
         let identity = self.client.identity_of(candidate.to_stash(), None).await?;
@@ -52,7 +53,7 @@ impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T> {
 
         // Requirement: Controller set.
         let controller = self.client.bonded(candidate.to_stash(), None).await?;
-        jury.judge_stash_controller_deviation(candidate.raw(), &controller);
+        jury.judge_stash_controller_deviation(&controller);
 
         // Requirement: Bonded amount.
         if let Some(controller) = controller {
@@ -62,6 +63,6 @@ impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T> {
             jury.judge_bonded_amount(None);
         }
 
-        Ok(())
+        Ok(jury.generate_report())
     }
 }
