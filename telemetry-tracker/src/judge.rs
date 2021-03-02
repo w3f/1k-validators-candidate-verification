@@ -87,6 +87,7 @@ where
         Ok(RequirementsProceeding {
             client: ClientBuilder::<T>::new()
                 .set_url(rpc_hostname)
+                .skip_type_sizes_check()
                 .build()
                 .await?,
             requirements: requirements,

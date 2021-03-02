@@ -208,7 +208,7 @@ async fn requirements_proceeding() {
 
     let config = RequirementsProceedingConfig {
         enabled: true,
-        db_uri: "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
+        db_uri: "mongodb://localhost:27017/".to_string(),
         db_name: "test_candidate_requirements".to_string(),
         chain: Chain::Kusama,
         rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
