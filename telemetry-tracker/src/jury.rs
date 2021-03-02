@@ -41,8 +41,6 @@ pub struct RequirementsConfig<Balance> {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RequirementsJudgementReport {
-    // TODO: Remove
-    pub candidate: Candidate,
     compliances: Vec<Compliance>,
     faults: PrevNow<isize>,
     rank: PrevNow<isize>,
@@ -78,7 +76,7 @@ where
     pub fn new(state: &CandidateState, config: &'a RequirementsConfig<T::Balance>) -> Result<Self> {
         let candidate = state.candidate.clone();
         let (faults, rank) = state
-            .requirements_report
+            .judgement_reports
             .last()
             .map(|l| (l.event.faults.clone(), l.event.rank.clone()))
             .unwrap_or((Default::default(), Default::default()));
@@ -119,7 +117,6 @@ where
         }
 
         RequirementsJudgementReport {
-            candidate: self.candidate,
             compliances: self.compliances,
             faults: PrevNow {
                 pre_judgement: self.faults.after_judgement,

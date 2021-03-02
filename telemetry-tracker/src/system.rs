@@ -148,11 +148,11 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
                 let state = store
                     .fetch_candidate_state(&candidate)
                     .await?
-                    .unwrap_or(CandidateState::new(candidate));
+                    .unwrap_or(CandidateState::new(candidate.clone()));
 
                 let report = proceeding.proceed_requirements(state).await?;
 
-                store.store_requirements_report(report).await?;
+                store.store_requirements_report(&candidate, report).await?;
             }
         }
         Chain::Kusama => {
@@ -166,11 +166,11 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
                 let state = store
                     .fetch_candidate_state(&candidate)
                     .await?
-                    .unwrap_or(CandidateState::new(candidate));
+                    .unwrap_or(CandidateState::new(candidate.clone()));
 
                 let report = proceeding.proceed_requirements(state).await?;
 
-                store.store_requirements_report(report).await?;
+                store.store_requirements_report(&candidate, report).await?;
             }
         }
     }

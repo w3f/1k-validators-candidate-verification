@@ -65,7 +65,7 @@ pub struct EventLog<T> {
 pub struct CandidateState {
     pub candidate: Candidate,
     pub last_report_timestamp: LogTimestamp,
-    pub requirements_report: Vec<EventLog<RequirementsJudgementReport>>,
+    pub judgement_reports: Vec<EventLog<RequirementsJudgementReport>>,
 }
 
 impl CandidateState {
@@ -73,7 +73,7 @@ impl CandidateState {
         CandidateState {
             candidate: candidate,
             last_report_timestamp: LogTimestamp::new(),
-            requirements_report: vec![],
+            judgement_reports: vec![],
         }
     }
 }
@@ -131,21 +131,22 @@ impl CandidateStateStore {
     }
     pub async fn store_requirements_report(
         &self,
+        candidate: &Candidate,
         report: RequirementsJudgementReport,
     ) -> Result<()> {
-        self.insert_candidate_state(&report.candidate).await?;
+        self.insert_candidate_state(candidate).await?;
 
         self.coll
             .update_one(
                 doc! {
-                    "candidate": report.candidate.to_bson()?,
+                    "candidate": candidate.to_bson()?,
                 },
                 doc! {
                     "$set": {
-                        "last_requirements_report": LogTimestamp::new().to_bson()?,
+                        "last_report_timestamp": LogTimestamp::new().to_bson()?,
                     },
                     "$push": {
-                        "requirements_report": EventLog {
+                        "judgement_reports": EventLog {
                             timestamp: LogTimestamp::new(),
                             event: report,
                         }.to_bson()?,
