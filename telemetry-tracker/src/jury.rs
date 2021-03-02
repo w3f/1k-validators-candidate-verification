@@ -1,4 +1,4 @@
-use crate::database::CandidateState;
+use crate::database::{CandidateState, TelemetryEventStore};
 use crate::judge::{NetworkAccount, ToCandidate};
 use crate::system::Candidate;
 use crate::Result;
@@ -67,13 +67,18 @@ pub struct RequirementsJudgement<'a, T: Balances> {
     config: &'a RequirementsConfig<T::Balance>,
     faults: PrevNow<isize>,
     rank: PrevNow<isize>,
+    telemetry_store: TelemetryEventStore,
 }
 
 impl<'a, T: Balances> RequirementsJudgement<'a, T>
 where
     T::AccountId: Ss58Codec,
 {
-    pub fn new(state: &CandidateState, config: &'a RequirementsConfig<T::Balance>) -> Result<Self> {
+    pub fn new(
+        state: &CandidateState,
+        config: &'a RequirementsConfig<T::Balance>,
+        store: TelemetryEventStore,
+    ) -> Result<Self> {
         let candidate = state.candidate.clone();
         let (faults, rank) = state
             .judgement_reports
@@ -87,6 +92,7 @@ where
             config: config,
             faults: faults,
             rank: rank,
+            telemetry_store: store,
         })
     }
     pub fn generate_report(self) -> RequirementsJudgementReport {
@@ -142,7 +148,9 @@ where
         // Check whether the identity has been judged by a registrar.
         let mut is_judged = false;
         for (_, judgement) in identity.judgements {
-            if judgement == RegistrarJudgement::Reasonable || judgement == RegistrarJudgement::KnownGood {
+            if judgement == RegistrarJudgement::Reasonable
+                || judgement == RegistrarJudgement::KnownGood
+            {
                 is_judged = true;
                 break;
             }

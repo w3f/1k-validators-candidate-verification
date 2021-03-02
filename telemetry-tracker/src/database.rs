@@ -100,6 +100,7 @@ impl MongoClient {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CandidateStateStore {
     coll: Collection,
 }
@@ -180,6 +181,7 @@ impl CandidateStateStore {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct TelemetryEventStore {
     coll: Collection,
 }

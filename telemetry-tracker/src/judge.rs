@@ -1,4 +1,4 @@
-use crate::database::CandidateState;
+use crate::database::{CandidateState, TelemetryEventStore};
 use crate::system::{Candidate, Network};
 use crate::Result;
 use crate::{
@@ -74,6 +74,7 @@ impl TryFrom<Candidate> for NetworkAccount<AccountId32> {
 pub struct RequirementsProceeding<T: Runtime + Balances> {
     client: Client<T>,
     requirements: RequirementsConfig<T::Balance>,
+    telemetry_store: TelemetryEventStore,
 }
 
 impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T>
@@ -83,6 +84,7 @@ where
     pub async fn new(
         rpc_hostname: &str,
         requirements: RequirementsConfig<T::Balance>,
+        store: TelemetryEventStore,
     ) -> Result<Self> {
         Ok(RequirementsProceeding {
             client: ClientBuilder::<T>::new()
@@ -91,13 +93,18 @@ where
                 .build()
                 .await?,
             requirements: requirements,
+            telemetry_store: store,
         })
     }
     pub async fn proceed_requirements(
         &self,
         state: CandidateState,
     ) -> Result<RequirementsJudgementReport> {
-        let mut jury = RequirementsJudgement::<T>::new(&state, &self.requirements)?;
+        let mut jury = RequirementsJudgement::<T>::new(
+            &state,
+            &self.requirements,
+            self.telemetry_store.clone(),
+        )?;
 
         let account_id = state.candidate.to_account_id::<T::AccountId>()?;
 

@@ -132,45 +132,53 @@ pub struct RequirementsProceedingConfig {
 
 async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Result<()> {
     info!("Opening MongoDB client");
-    let store = MongoClient::new(&config.db_uri, &config.db_name)
-        .await?
-        .get_candidate_state_store();
+    let store = MongoClient::new(&config.db_uri, &config.db_name).await?;
+
+    let candidate_store = store.get_candidate_state_store();
+
+    let telemetry_store = store.get_telemetry_event_store();
 
     match config.network {
         Network::Polkadot => {
             let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(
                 &config.rpc_hostname,
                 config.requirements_config,
+                telemetry_store,
             )
             .await?;
 
             for candidate in config.candidates {
-                let state = store
+                let state = candidate_store
                     .fetch_candidate_state(&candidate)
                     .await?
                     .unwrap_or(CandidateState::new(candidate.clone()));
 
                 let report = proceeding.proceed_requirements(state).await?;
 
-                store.store_requirements_report(&candidate, report).await?;
+                candidate_store
+                    .store_requirements_report(&candidate, report)
+                    .await?;
             }
         }
         Network::Kusama => {
             let proceeding = RequirementsProceeding::<KusamaRuntime>::new(
                 &config.rpc_hostname,
                 config.requirements_config,
+                telemetry_store,
             )
             .await?;
 
             for candidate in config.candidates {
-                let state = store
+                let state = candidate_store
                     .fetch_candidate_state(&candidate)
                     .await?
                     .unwrap_or(CandidateState::new(candidate.clone()));
 
                 let report = proceeding.proceed_requirements(state).await?;
 
-                store.store_requirements_report(&candidate, report).await?;
+                candidate_store
+                    .store_requirements_report(&candidate, report)
+                    .await?;
             }
         }
     }
