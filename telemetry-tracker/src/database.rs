@@ -323,6 +323,7 @@ impl TelemetryEventStore {
 
         Ok(m_version)
     }
+    // TODO: Required?
     pub async fn get_observed_names(&self) -> Result<Vec<NodeName>> {
         let mut cursor = self
             .coll
@@ -343,6 +344,51 @@ impl TelemetryEventStore {
         }
 
         Ok(names)
+    }
+    pub async fn verify_online(
+        &self,
+        candidate: &Candidate,
+        last: u64,
+        interval: u64,
+    ) -> Result<()> {
+        let node_id = NodeId::default();
+        let events_after = LogTimestamp::new().0 - last as i64;
+
+        let mut cursor = self
+            .coll
+            .aggregate(
+                vec![
+                    doc! {
+                        "$match": {
+                            "events.event.timestamp": {
+                                "$gt": events_after.to_bson()?,
+                            },
+                            "events.event.content.node_id": node_id.to_bson()?,
+                        }
+                    },
+                    doc! {
+                        "$project": {
+                            "$count": "total_events",
+                            "oldest_timestamp": {
+                                "$min": "events.event.timestamp",
+                            },
+                            "latest_timestamp": {
+                                "$max": "events.event.timestamp",
+                            }
+                        }
+                    }
+                ],
+                None,
+            )
+            .await?;
+
+        while let Some(doc) = cursor.next().await {
+            let doc = doc?;
+
+            println!(">> {}", doc.to_string());
+        }
+
+        Ok(())
     }
 }
 

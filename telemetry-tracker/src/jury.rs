@@ -207,7 +207,6 @@ where
             return Ok(());
         };
 
-        //if self.candidate.try_into()? != controller {
         if &T::AccountId::from_ss58check(self.candidate.stash_str())
             .map_err(|err| anyhow!("failed to convert candidate to T::AccountId"))?
             != controller
@@ -236,13 +235,5 @@ where
         } else {
             self.judgments.push(Judgement::Fault(Context::BondedAmount));
         }
-    }
-}
-
-pub struct RankingJudgement {}
-
-impl RankingJudgement {
-    fn new() -> Self {
-        RankingJudgement {}
     }
 }
