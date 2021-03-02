@@ -129,7 +129,7 @@ impl CandidateStateStore {
 
         Ok(())
     }
-    async fn store_requirements_report(&self, report: RequirementsJudgementReport) -> Result<()> {
+    pub async fn store_requirements_report(&self, report: RequirementsJudgementReport) -> Result<()> {
         self.insert_candidate_state(&report.candidate).await?;
 
         self.coll

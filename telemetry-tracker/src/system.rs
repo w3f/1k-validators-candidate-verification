@@ -122,6 +122,11 @@ pub struct RequirementsProceedingConfig {
 }
 
 async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Result<()> {
+    info!("Opening MongoDB client");
+    let store = MongoClient::new(&config.db_uri, &config.db_name)
+        .await?
+        .get_candidate_state_store();
+
     match config.chain {
         Chain::Polkadot => {
             let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(
@@ -134,6 +139,8 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
                 let report = proceeding
                     .proceed_requirements(candidate.try_into()?)
                     .await?;
+
+                store.store_requirements_report(report).await?;
             }
         }
         Chain::Kusama => {
@@ -144,9 +151,11 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
             .await?;
 
             for candidate in config.candidates {
-                proceeding
+                let report = proceeding
                     .proceed_requirements(candidate.try_into()?)
                     .await?;
+
+                store.store_requirements_report(report).await?;
             }
         }
     }

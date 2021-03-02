@@ -8,7 +8,7 @@ use substrate_subxt::{balances::Balances, sp_runtime::AccountId32};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Field {
+pub enum Topic {
     IdentityFound,
     RegistrarJudgement,
     CorrectIdentityInfo,
@@ -24,8 +24,8 @@ pub enum Field {
 #[serde(tag = "type", content = "content")]
 #[serde(rename_all = "snake_case")]
 pub enum Compliance {
-    Ok(Field),
-    Err(Field),
+    Ok(Topic),
+    Fault(Topic),
 }
 
 pub struct RequirementsConfig<Balance> {
@@ -70,10 +70,10 @@ where
     pub fn judge_identity(&mut self, identity: Option<Registration<T::Balance>>) {
         // Check whether the identity is available.
         let identity = if let Some(identity) = identity {
-            self.compliances.push(Compliance::Ok(Field::IdentityFound));
+            self.compliances.push(Compliance::Ok(Topic::IdentityFound));
             identity
         } else {
-            self.compliances.push(Compliance::Err(Field::IdentityFound));
+            self.compliances.push(Compliance::Fault(Topic::IdentityFound));
             return;
         };
 
@@ -89,20 +89,20 @@ where
         match is_judged {
             true => self
                 .compliances
-                .push(Compliance::Ok(Field::RegistrarJudgement)),
+                .push(Compliance::Ok(Topic::RegistrarJudgement)),
             false => self
                 .compliances
-                .push(Compliance::Err(Field::RegistrarJudgement)),
+                .push(Compliance::Fault(Topic::RegistrarJudgement)),
         }
 
         // Check whether the identity has the display name and email field set.
         let info = identity.info;
         if info.display != Data::None && info.email != Data::None {
             self.compliances
-                .push(Compliance::Ok(Field::CorrectIdentityInfo));
+                .push(Compliance::Ok(Topic::CorrectIdentityInfo));
         } else {
             self.compliances
-                .push(Compliance::Err(Field::CorrectIdentityInfo));
+                .push(Compliance::Fault(Topic::CorrectIdentityInfo));
         }
     }
     pub fn judge_reward_destination(
@@ -111,51 +111,51 @@ where
     ) {
         if reward_destination == RewardDestination::Staked {
             self.compliances
-                .push(Compliance::Ok(Field::RewardDestination));
+                .push(Compliance::Ok(Topic::RewardDestination));
         } else {
             self.compliances
-                .push(Compliance::Ok(Field::RewardDestination));
+                .push(Compliance::Ok(Topic::RewardDestination));
         }
     }
     pub fn judge_commission(&mut self, commission: Perbill) {
         if commission.deconstruct() <= (self.config.commission * 1_000_000) {
-            self.compliances.push(Compliance::Ok(Field::Commission));
+            self.compliances.push(Compliance::Ok(Topic::Commission));
         } else {
-            self.compliances.push(Compliance::Err(Field::Commission));
+            self.compliances.push(Compliance::Fault(Topic::Commission));
         }
     }
     pub fn judge_stash_controller_deviation(&mut self, controller: &Option<T::AccountId>) {
         let controller = if let Some(controller) = controller {
             self.compliances
-                .push(Compliance::Ok(Field::ControllerFound));
+                .push(Compliance::Ok(Topic::ControllerFound));
             controller
         } else {
             self.compliances
-                .push(Compliance::Err(Field::ControllerFound));
+                .push(Compliance::Fault(Topic::ControllerFound));
             return;
         };
 
         if self.candidate.raw() != controller {
             self.compliances
-                .push(Compliance::Ok(Field::StashControllerDeviation));
+                .push(Compliance::Ok(Topic::StashControllerDeviation));
         } else {
             self.compliances
-                .push(Compliance::Err(Field::StashControllerDeviation));
+                .push(Compliance::Fault(Topic::StashControllerDeviation));
         }
     }
     pub fn judge_bonded_amount(&mut self, ledger: Option<StakingLedger<T::AccountId, T::Balance>>) {
         let ledger = if let Some(ledger) = ledger {
-            self.compliances.push(Compliance::Ok(Field::StakingLedger));
+            self.compliances.push(Compliance::Ok(Topic::StakingLedger));
             ledger
         } else {
-            self.compliances.push(Compliance::Err(Field::StakingLedger));
+            self.compliances.push(Compliance::Fault(Topic::StakingLedger));
             return;
         };
 
         if ledger.total >= self.config.bonded_amount {
-            self.compliances.push(Compliance::Ok(Field::BondedAmount));
+            self.compliances.push(Compliance::Ok(Topic::BondedAmount));
         } else {
-            self.compliances.push(Compliance::Err(Field::BondedAmount));
+            self.compliances.push(Compliance::Fault(Topic::BondedAmount));
         }
     }
 }
