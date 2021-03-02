@@ -25,10 +25,11 @@ pub enum Topic {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "type", content = "content")]
+#[serde(tag = "type", content = "context")]
 #[serde(rename_all = "snake_case")]
 pub enum Compliance {
     Ok(Topic),
+    #[serde(rename = "nok_fault")]
     Fault(Topic),
 }
 
@@ -107,9 +108,14 @@ where
         // (i.e. only half ranks if in the last round the candidate had no faults).
         if self.faults.after_judgement == 0 {
             // No matter how many faults occur, just half the rank if there are faults.
-            if faults > 0 {
+            if faults > 1 {
                 rank /= 2;
             }
+        }
+
+        // Increase rank if appropriate.
+        if faults == 0 {
+            rank += 1;
         }
 
         RequirementsJudgementReport {

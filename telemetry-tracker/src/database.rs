@@ -38,8 +38,8 @@ pub struct NodeActivity {
     pub node_name: Option<NodeName>,
     pub stash: Option<RegisteredStash>,
     pub controller: Option<RegisteredController>,
-    pub last_event_log: LogTimestamp,
-    pub event_logs: Vec<EventLog<TelemetryEvent>>,
+    pub last_event_timestamp: LogTimestamp,
+    pub events: Vec<EventLog<TelemetryEvent>>,
 }
 
 impl NodeActivity {
@@ -49,8 +49,8 @@ impl NodeActivity {
             node_name: name,
             stash: None,
             controller: None,
-            last_event_log: LogTimestamp::new(),
-            event_logs: vec![],
+            last_event_timestamp: LogTimestamp::new(),
+            events: vec![],
         }
     }
 }
@@ -64,7 +64,7 @@ pub struct EventLog<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CandidateState {
     pub candidate: Candidate,
-    pub last_requirements_report: LogTimestamp,
+    pub last_report_timestamp: LogTimestamp,
     pub requirements_report: Vec<EventLog<RequirementsJudgementReport>>,
 }
 
@@ -72,7 +72,7 @@ impl CandidateState {
     pub fn new(candidate: Candidate) -> Self {
         CandidateState {
             candidate: candidate,
-            last_requirements_report: LogTimestamp::new(),
+            last_report_timestamp: LogTimestamp::new(),
             requirements_report: vec![],
         }
     }
@@ -224,7 +224,7 @@ impl TelemetryEventStore {
                         "last_event_lot": LogTimestamp::new().to_bson()?,
                     },
                     "$push": {
-                        "event_logs": EventLog {
+                        "events": EventLog {
                             timestamp: LogTimestamp::new(),
                             event: event,
                         }.to_bson()?
@@ -275,8 +275,8 @@ impl TelemetryEventStore {
             .coll
             .find(
                 doc! {
-                    "event_logs.event.type": "added_node",
-                    "event_logs.event.content.details.version": {
+                    "events.event.type": "added_node",
+                    "events.event.content.details.version": {
                         "$exists": true,
                     }
                 },
@@ -289,7 +289,7 @@ impl TelemetryEventStore {
             let node_activity: NodeActivity = from_document(doc?)?;
 
             let mut version = None;
-            for log in node_activity.event_logs {
+            for log in node_activity.events {
                 match log.event {
                     TelemetryEvent::AddedNode(event) => {
                         version = Some(event.details.version);
@@ -394,8 +394,8 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        assert_eq!(stored.event_logs.len(), node_1_events.len());
-        for (log, expected) in stored.event_logs.iter().zip(node_1_events.iter()) {
+        assert_eq!(stored.events.len(), node_1_events.len());
+        for (log, expected) in stored.events.iter().zip(node_1_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
@@ -406,8 +406,8 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        assert_eq!(stored.event_logs.len(), node_2_events.len());
-        for (log, expected) in stored.event_logs.iter().zip(node_2_events.iter()) {
+        assert_eq!(stored.events.len(), node_2_events.len());
+        for (log, expected) in stored.events.iter().zip(node_2_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
@@ -418,8 +418,8 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        assert_eq!(stored.event_logs.len(), node_3_events.len());
-        for (log, expected) in stored.event_logs.iter().zip(node_3_events.iter()) {
+        assert_eq!(stored.events.len(), node_3_events.len());
+        for (log, expected) in stored.events.iter().zip(node_3_events.iter()) {
             assert_eq!(&log.event, expected);
         }
 
@@ -441,12 +441,12 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            stored.event_logs.len(),
+            stored.events.len(),
             node_1_events.len() + node_1_events_new.len()
         );
 
         for (log, expected) in stored
-            .event_logs
+            .events
             .iter()
             .zip(node_1_events.iter().chain(node_1_events_new.iter()))
         {
