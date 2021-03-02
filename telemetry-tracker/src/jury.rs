@@ -77,8 +77,8 @@ impl<'a, T: Balances> RequirementsJudgement<'a, T>
 where
     T::AccountId: Ss58Codec,
 {
-    pub fn new(state: CandidateState, config: &'a RequirementsConfig<T::Balance>) -> Result<Self> {
-        let candidate = state.candidate;
+    pub fn new(state: &CandidateState, config: &'a RequirementsConfig<T::Balance>) -> Result<Self> {
+        let candidate = state.candidate.clone();
         let (faults, rank) = state
             .requirements_report
             .last()

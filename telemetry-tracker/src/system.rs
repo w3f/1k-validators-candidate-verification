@@ -4,6 +4,7 @@ use crate::{database::MongoClient, judge::NetworkAccount};
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use std::convert::TryInto;
+use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::{sp_runtime::AccountId32, Runtime};
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 use tokio_tungstenite::connect_async;
@@ -96,18 +97,23 @@ pub struct Candidate {
     chain: Chain,
 }
 
+impl Candidate {
+    pub fn stash_str(&self) -> &str {
+        self.stash.as_str()
+    }
+    pub fn to_account_id<T: Ss58Codec>(&self) -> Result<T> {
+        Ok(T::from_ss58check(&self.stash).map_err(|err| {
+            anyhow!("Failed to convert presumed SS58 string into a NetworkAccount")
+        })?)
+    }
+}
+
 impl From<(String, Chain)> for Candidate {
     fn from(val: (String, Chain)) -> Self {
         Candidate {
             stash: val.0,
             chain: val.1,
         }
-    }
-}
-
-impl Candidate {
-    pub fn stash_str(&self) -> &str {
-        self.stash.as_str()
     }
 }
 
@@ -136,9 +142,10 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
             .await?;
 
             for candidate in config.candidates {
-                let report = proceeding
-                    .proceed_requirements(candidate.try_into()?)
-                    .await?;
+                // TODO: Handle unwrap
+                let state = store.fetch_candidate_state(&candidate).await?.unwrap();
+
+                let report = proceeding.proceed_requirements(state).await?;
 
                 store.store_requirements_report(report).await?;
             }
@@ -151,9 +158,10 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
             .await?;
 
             for candidate in config.candidates {
-                let report = proceeding
-                    .proceed_requirements(candidate.try_into()?)
-                    .await?;
+                // TODO: Handle unwrap
+                let state = store.fetch_candidate_state(&candidate).await?.unwrap();
+
+                let report = proceeding.proceed_requirements(state).await?;
 
                 store.store_requirements_report(report).await?;
             }

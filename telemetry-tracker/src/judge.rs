@@ -1,3 +1,4 @@
+use crate::database::CandidateState;
 use crate::system::{Candidate, Chain};
 use crate::Result;
 use crate::{
@@ -77,7 +78,7 @@ pub struct RequirementsProceeding<T: Runtime + Balances> {
 
 impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T>
 where
-    NetworkAccount<T::AccountId>: ToCandidate<T>,
+    T::AccountId: Ss58Codec,
 {
     pub async fn new(
         rpc_hostname: &str,
@@ -93,30 +94,31 @@ where
     }
     pub async fn proceed_requirements(
         &self,
-        candidate: NetworkAccount<T::AccountId>,
+        state: CandidateState,
     ) -> Result<RequirementsJudgementReport> {
-        /*
-        let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), &self.requirements)?;
+        let mut jury = RequirementsJudgement::<T>::new(&state, &self.requirements)?;
+
+        let account_id = state.candidate.to_account_id::<T::AccountId>()?;
 
         println!("GOT HERE");
         // Requirement: Identity.
         debug!("Checking identity requirement");
-        let identity = self.client.identity_of(candidate.to_stash(), None).await?;
+        let identity = self.client.identity_of(account_id.clone(), None).await?;
         jury.judge_identity(identity);
 
         // Requirement: Reward destination.
         debug!("Checking reward destination requirement");
-        let desination = self.client.payee(candidate.to_stash(), None).await?;
+        let desination = self.client.payee(account_id.clone(), None).await?;
         jury.judge_reward_destination(desination);
 
         // Requirement: Commission.
         debug!("Checking commission requirement");
-        let prefs = self.client.validators(candidate.to_stash(), None).await?;
+        let prefs = self.client.validators(account_id.clone(), None).await?;
         jury.judge_commission(prefs.commission);
 
         // Requirement: Controller set.
         debug!("Checking controller requirement");
-        let controller = self.client.bonded(candidate.to_stash(), None).await?;
+        let controller = self.client.bonded(account_id.clone(), None).await?;
         jury.judge_stash_controller_deviation(&controller);
 
         // Requirement: Bonded amount.
@@ -129,7 +131,5 @@ where
         }
 
         Ok(jury.generate_report())
-        */
-        unimplemented!()
     }
 }

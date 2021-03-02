@@ -157,6 +157,12 @@ impl CandidateStateStore {
 
         Ok(())
     }
+    pub async fn fetch_candidate_state(
+        &self,
+        candidate: &Candidate,
+    ) -> Result<Option<CandidateState>> {
+        unimplemented!()
+    }
 }
 
 pub struct TelemetryEventStore {
