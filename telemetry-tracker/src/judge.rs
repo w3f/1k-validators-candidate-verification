@@ -26,6 +26,7 @@ impl<T: Clone> NetworkAccount<T> {
     }
 }
 
+// TODO: This required?
 pub trait ToCandidate<T> {
     fn to_candidate(self) -> Candidate;
 }
@@ -94,7 +95,8 @@ where
         &self,
         candidate: NetworkAccount<T::AccountId>,
     ) -> Result<RequirementsJudgementReport> {
-        let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), &self.requirements);
+        /*
+        let mut jury = RequirementsJudgement::<T>::new(candidate.clone(), &self.requirements)?;
 
         println!("GOT HERE");
         // Requirement: Identity.
@@ -127,5 +129,7 @@ where
         }
 
         Ok(jury.generate_report())
+        */
+        unimplemented!()
     }
 }

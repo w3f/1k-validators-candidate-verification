@@ -1,7 +1,11 @@
+use crate::database::CandidateState;
 use crate::judge::{NetworkAccount, ToCandidate};
 use crate::system::Candidate;
+use crate::Result;
 use sp_arithmetic::Perbill;
+use std::convert::TryFrom;
 use substrate_subxt::identity::{Data, Judgement, Registration};
+use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::staking::{RewardDestination, StakingLedger};
 use substrate_subxt::Runtime;
 use substrate_subxt::{balances::Balances, sp_runtime::AccountId32};
@@ -39,32 +43,86 @@ pub struct RequirementsJudgementReport {
     // TODO: Remove
     pub candidate: Candidate,
     compliances: Vec<Compliance>,
+    faults: PrevNow<usize>,
+    rank: PrevNow<usize>,
 }
 
-pub struct RequirementsJudgement<'a, T: Runtime + Balances> {
-    candidate: NetworkAccount<T::AccountId>,
-    compliances: Vec<Compliance>,
-    config: &'a RequirementsConfig<T::Balance>,
+pub struct Faults(PrevNow<usize>);
+pub struct Rank(PrevNow<usize>);
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PrevNow<T> {
+    pre_judgement: T,
+    after_judgement: T,
 }
 
-impl<'a, T: Runtime + Balances> RequirementsJudgement<'a, T>
-where
-    NetworkAccount<T::AccountId>: ToCandidate<T>,
-{
-    pub fn new(
-        candidate: NetworkAccount<T::AccountId>,
-        config: &'a RequirementsConfig<T::Balance>,
-    ) -> Self {
-        RequirementsJudgement {
-            candidate: candidate,
-            compliances: vec![],
-            config: config,
+impl Default for PrevNow<usize> {
+    fn default() -> Self {
+        PrevNow {
+            pre_judgement: 0,
+            after_judgement: 0,
         }
     }
+}
+
+pub struct RequirementsJudgement<'a, T: Balances> {
+    candidate: Candidate,
+    compliances: Vec<Compliance>,
+    config: &'a RequirementsConfig<T::Balance>,
+    faults: PrevNow<usize>,
+    rank: PrevNow<usize>,
+}
+
+impl<'a, T: Balances> RequirementsJudgement<'a, T>
+where
+    T::AccountId: Ss58Codec,
+{
+    pub fn new(state: CandidateState, config: &'a RequirementsConfig<T::Balance>) -> Result<Self> {
+        Ok(RequirementsJudgement {
+            candidate: state.candidate,
+            compliances: vec![],
+            config: config,
+            faults: state
+                .requirements_report
+                .last()
+                .as_ref()
+                .map(|l| l.event.faults.clone())
+                .unwrap_or(Default::default()),
+            rank: state
+                .requirements_report
+                .last()
+                .as_ref()
+                .map(|l| l.event.faults.clone())
+                .unwrap_or(Default::default()),
+        })
+    }
     pub fn generate_report(self) -> RequirementsJudgementReport {
+        // Count faults
+        let mut faults = 0;
+        for comp in &self.compliances {
+            match comp {
+                Compliance::Fault(_) => faults += 1,
+                _ => {}
+            }
+        }
+
+        // No matter how many faults occur.
+        let mut rank = self.rank.after_judgement;
+        if faults > 0 {
+            rank /= 2;
+        }
+
         RequirementsJudgementReport {
-            candidate: ToCandidate::<T>::to_candidate(self.candidate),
+            candidate: self.candidate,
             compliances: self.compliances,
+            faults: PrevNow {
+                pre_judgement: self.faults.after_judgement,
+                after_judgement: faults,
+            },
+            rank: PrevNow {
+                pre_judgement: self.rank.after_judgement,
+                after_judgement: rank,
+            },
         }
     }
     pub fn judge_identity(&mut self, identity: Option<Registration<T::Balance>>) {
@@ -73,7 +131,8 @@ where
             self.compliances.push(Compliance::Ok(Topic::IdentityFound));
             identity
         } else {
-            self.compliances.push(Compliance::Fault(Topic::IdentityFound));
+            self.compliances
+                .push(Compliance::Fault(Topic::IdentityFound));
             return;
         };
 
@@ -124,7 +183,10 @@ where
             self.compliances.push(Compliance::Fault(Topic::Commission));
         }
     }
-    pub fn judge_stash_controller_deviation(&mut self, controller: &Option<T::AccountId>) {
+    pub fn judge_stash_controller_deviation(
+        &mut self,
+        controller: &Option<T::AccountId>,
+    ) -> Result<()> {
         let controller = if let Some(controller) = controller {
             self.compliances
                 .push(Compliance::Ok(Topic::ControllerFound));
@@ -132,30 +194,38 @@ where
         } else {
             self.compliances
                 .push(Compliance::Fault(Topic::ControllerFound));
-            return;
+            return Ok(());
         };
 
-        if self.candidate.raw() != controller {
+        //if self.candidate.try_into()? != controller {
+        if &T::AccountId::from_ss58check(self.candidate.stash_str())
+            .map_err(|err| anyhow!("failed to convert candidate to T::AccountId"))?
+            != controller
+        {
             self.compliances
                 .push(Compliance::Ok(Topic::StashControllerDeviation));
         } else {
             self.compliances
                 .push(Compliance::Fault(Topic::StashControllerDeviation));
         }
+
+        Ok(())
     }
     pub fn judge_bonded_amount(&mut self, ledger: Option<StakingLedger<T::AccountId, T::Balance>>) {
         let ledger = if let Some(ledger) = ledger {
             self.compliances.push(Compliance::Ok(Topic::StakingLedger));
             ledger
         } else {
-            self.compliances.push(Compliance::Fault(Topic::StakingLedger));
+            self.compliances
+                .push(Compliance::Fault(Topic::StakingLedger));
             return;
         };
 
         if ledger.total >= self.config.bonded_amount {
             self.compliances.push(Compliance::Ok(Topic::BondedAmount));
         } else {
-            self.compliances.push(Compliance::Fault(Topic::BondedAmount));
+            self.compliances
+                .push(Compliance::Fault(Topic::BondedAmount));
         }
     }
 }
