@@ -1,5 +1,5 @@
 use crate::database::CandidateState;
-use crate::system::{Candidate, Chain};
+use crate::system::{Candidate, Network};
 use crate::Result;
 use crate::{
     events::NetworkId,
@@ -37,7 +37,7 @@ impl ToCandidate<DefaultNodeRuntime> for NetworkAccount<<DefaultNodeRuntime as S
         Candidate::from((
             self.raw()
                 .to_ss58check_with_version(Ss58AddressFormat::PolkadotAccount),
-            Chain::Polkadot,
+            Network::Polkadot,
         ))
     }
 }
@@ -47,7 +47,7 @@ impl ToCandidate<KusamaRuntime> for NetworkAccount<<KusamaRuntime as System>::Ac
         Candidate::from((
             self.raw()
                 .to_ss58check_with_version(Ss58AddressFormat::KusamaAccount),
-            Chain::Kusama,
+            Network::Kusama,
         ))
     }
 }

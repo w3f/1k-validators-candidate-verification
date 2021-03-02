@@ -15,16 +15,16 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Chain {
+pub enum Network {
     Polkadot,
     Kusama,
 }
 
-impl AsRef<str> for Chain {
+impl AsRef<str> for Network {
     fn as_ref(&self) -> &str {
         match self {
-            Chain::Polkadot => "Polkadot",
-            Chain::Kusama => "Kusama",
+            Network::Polkadot => "Polkadot",
+            Network::Kusama => "Kusama",
         }
     }
 }
@@ -34,7 +34,7 @@ pub struct TelemetryWatcherConfig {
     uri: String,
     database: String,
     telemetry_host: String,
-    chain: Chain,
+    network: Network,
 }
 
 async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
@@ -48,18 +48,18 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
         .await
         .map_err(|err| anyhow!("Failed to connect to telemetry server: {:?}", err))?;
 
-    // Subscribe to specified chain.
-    info!("Subscribing to {} chain", config.chain.as_ref());
+    // Subscribe to specified network.
+    info!("Subscribing to {} network", config.network.as_ref());
     stream
         .send(Message::text(format!(
             "subscribe:{}",
-            config.chain.as_ref()
+            config.network.as_ref()
         )))
         .await
         .map_err(|err| {
             anyhow!(
-                "Failed to subscribe to chain {}: {:?}",
-                config.chain.as_ref(),
+                "Failed to subscribe to network {}: {:?}",
+                config.network.as_ref(),
                 err
             )
         })?;
@@ -97,7 +97,7 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
 #[serde(rename_all = "snake_case")]
 pub struct Candidate {
     stash: String,
-    chain: Chain,
+    network: Network,
 }
 
 impl Candidate {
@@ -111,11 +111,11 @@ impl Candidate {
     }
 }
 
-impl From<(String, Chain)> for Candidate {
-    fn from(val: (String, Chain)) -> Self {
+impl From<(String, Network)> for Candidate {
+    fn from(val: (String, Network)) -> Self {
         Candidate {
             stash: val.0,
-            chain: val.1,
+            network: val.1,
         }
     }
 }
@@ -124,7 +124,7 @@ pub struct RequirementsProceedingConfig {
     enabled: bool,
     db_uri: String,
     db_name: String,
-    chain: Chain,
+    network: Network,
     rpc_hostname: String,
     requirements_config: RequirementsConfig<u128>,
     candidates: Vec<Candidate>,
@@ -136,8 +136,8 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
         .await?
         .get_candidate_state_store();
 
-    match config.chain {
-        Chain::Polkadot => {
+    match config.network {
+        Network::Polkadot => {
             let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(
                 &config.rpc_hostname,
                 config.requirements_config,
@@ -155,7 +155,7 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
                 store.store_requirements_report(&candidate, report).await?;
             }
         }
-        Chain::Kusama => {
+        Network::Kusama => {
             let proceeding = RequirementsProceeding::<KusamaRuntime>::new(
                 &config.rpc_hostname,
                 config.requirements_config,
@@ -184,11 +184,11 @@ async fn telemetry() {
         .await
         .unwrap();
 
-    // Subscribe to specified chain.
+    // Subscribe to specified network.
     stream
         .send(Message::text(format!(
             "subscribe:{}",
-            Chain::Polkadot.as_ref()
+            Network::Polkadot.as_ref()
         )))
         .await
         .unwrap();
@@ -217,7 +217,7 @@ async fn requirements_proceeding() {
         enabled: true,
         db_uri: "mongodb://localhost:27017/".to_string(),
         db_name: "test_candidate_requirements".to_string(),
-        chain: Chain::Kusama,
+        network: Network::Kusama,
         rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
         requirements_config: RequirementsConfig {
             commission: 10,
@@ -225,7 +225,7 @@ async fn requirements_proceeding() {
         },
         candidates: vec![Candidate::from((
             "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
-            Chain::Kusama,
+            Network::Kusama,
         ))],
     };
 

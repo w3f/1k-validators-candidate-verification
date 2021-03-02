@@ -4,7 +4,7 @@ use crate::system::Candidate;
 use crate::Result;
 use sp_arithmetic::Perbill;
 use std::convert::TryFrom;
-use substrate_subxt::identity::{Data, Judgement, Registration};
+use substrate_subxt::identity::{Data, Judgement as RegistrarJudgement, Registration};
 use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::staking::{RewardDestination, StakingLedger};
 use substrate_subxt::Runtime;
@@ -12,7 +12,7 @@ use substrate_subxt::{balances::Balances, sp_runtime::AccountId32};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Topic {
+pub enum Context {
     IdentityFound,
     RegistrarJudgement,
     CorrectIdentityInfo,
@@ -27,10 +27,10 @@ pub enum Topic {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type", content = "context")]
 #[serde(rename_all = "snake_case")]
-pub enum Compliance {
-    Ok(Topic),
+pub enum Judgement {
+    Ok(Context),
     #[serde(rename = "nok_fault")]
-    Fault(Topic),
+    Fault(Context),
 }
 
 pub struct RequirementsConfig<Balance> {
@@ -41,7 +41,7 @@ pub struct RequirementsConfig<Balance> {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RequirementsJudgementReport {
-    compliances: Vec<Compliance>,
+    judgments: Vec<Judgement>,
     faults: PrevNow<isize>,
     rank: PrevNow<isize>,
 }
@@ -63,7 +63,7 @@ impl Default for PrevNow<isize> {
 
 pub struct RequirementsJudgement<'a, T: Balances> {
     candidate: Candidate,
-    compliances: Vec<Compliance>,
+    judgments: Vec<Judgement>,
     config: &'a RequirementsConfig<T::Balance>,
     faults: PrevNow<isize>,
     rank: PrevNow<isize>,
@@ -83,7 +83,7 @@ where
 
         Ok(RequirementsJudgement {
             candidate: candidate,
-            compliances: vec![],
+            judgments: vec![],
             config: config,
             faults: faults,
             rank: rank,
@@ -92,9 +92,9 @@ where
     pub fn generate_report(self) -> RequirementsJudgementReport {
         // Count faults
         let mut faults = 0;
-        for comp in &self.compliances {
+        for comp in &self.judgments {
             match comp {
-                Compliance::Fault(_) => faults += 1,
+                Judgement::Fault(_) => faults += 1,
                 _ => {}
             }
         }
@@ -117,7 +117,7 @@ where
         }
 
         RequirementsJudgementReport {
-            compliances: self.compliances,
+            judgments: self.judgments,
             faults: PrevNow {
                 pre_judgement: self.faults.after_judgement,
                 after_judgement: faults,
@@ -131,18 +131,18 @@ where
     pub fn judge_identity(&mut self, identity: Option<Registration<T::Balance>>) {
         // Check whether the identity is available.
         let identity = if let Some(identity) = identity {
-            self.compliances.push(Compliance::Ok(Topic::IdentityFound));
+            self.judgments.push(Judgement::Ok(Context::IdentityFound));
             identity
         } else {
-            self.compliances
-                .push(Compliance::Fault(Topic::IdentityFound));
+            self.judgments
+                .push(Judgement::Fault(Context::IdentityFound));
             return;
         };
 
         // Check whether the identity has been judged by a registrar.
         let mut is_judged = false;
         for (_, judgement) in identity.judgements {
-            if judgement == Judgement::Reasonable || judgement == Judgement::KnownGood {
+            if judgement == RegistrarJudgement::Reasonable || judgement == RegistrarJudgement::KnownGood {
                 is_judged = true;
                 break;
             }
@@ -150,21 +150,21 @@ where
 
         match is_judged {
             true => self
-                .compliances
-                .push(Compliance::Ok(Topic::RegistrarJudgement)),
+                .judgments
+                .push(Judgement::Ok(Context::RegistrarJudgement)),
             false => self
-                .compliances
-                .push(Compliance::Fault(Topic::RegistrarJudgement)),
+                .judgments
+                .push(Judgement::Fault(Context::RegistrarJudgement)),
         }
 
         // Check whether the identity has the display name and email field set.
         let info = identity.info;
         if info.display != Data::None && info.email != Data::None {
-            self.compliances
-                .push(Compliance::Ok(Topic::CorrectIdentityInfo));
+            self.judgments
+                .push(Judgement::Ok(Context::CorrectIdentityInfo));
         } else {
-            self.compliances
-                .push(Compliance::Fault(Topic::CorrectIdentityInfo));
+            self.judgments
+                .push(Judgement::Fault(Context::CorrectIdentityInfo));
         }
     }
     pub fn judge_reward_destination(
@@ -172,18 +172,18 @@ where
         reward_destination: RewardDestination<T::AccountId>,
     ) {
         if reward_destination == RewardDestination::Staked {
-            self.compliances
-                .push(Compliance::Ok(Topic::RewardDestination));
+            self.judgments
+                .push(Judgement::Ok(Context::RewardDestination));
         } else {
-            self.compliances
-                .push(Compliance::Ok(Topic::RewardDestination));
+            self.judgments
+                .push(Judgement::Ok(Context::RewardDestination));
         }
     }
     pub fn judge_commission(&mut self, commission: Perbill) {
         if commission.deconstruct() <= (self.config.commission * 1_000_000) {
-            self.compliances.push(Compliance::Ok(Topic::Commission));
+            self.judgments.push(Judgement::Ok(Context::Commission));
         } else {
-            self.compliances.push(Compliance::Fault(Topic::Commission));
+            self.judgments.push(Judgement::Fault(Context::Commission));
         }
     }
     pub fn judge_stash_controller_deviation(
@@ -191,12 +191,11 @@ where
         controller: &Option<T::AccountId>,
     ) -> Result<()> {
         let controller = if let Some(controller) = controller {
-            self.compliances
-                .push(Compliance::Ok(Topic::ControllerFound));
+            self.judgments.push(Judgement::Ok(Context::ControllerFound));
             controller
         } else {
-            self.compliances
-                .push(Compliance::Fault(Topic::ControllerFound));
+            self.judgments
+                .push(Judgement::Fault(Context::ControllerFound));
             return Ok(());
         };
 
@@ -205,30 +204,29 @@ where
             .map_err(|err| anyhow!("failed to convert candidate to T::AccountId"))?
             != controller
         {
-            self.compliances
-                .push(Compliance::Ok(Topic::StashControllerDeviation));
+            self.judgments
+                .push(Judgement::Ok(Context::StashControllerDeviation));
         } else {
-            self.compliances
-                .push(Compliance::Fault(Topic::StashControllerDeviation));
+            self.judgments
+                .push(Judgement::Fault(Context::StashControllerDeviation));
         }
 
         Ok(())
     }
     pub fn judge_bonded_amount(&mut self, ledger: Option<StakingLedger<T::AccountId, T::Balance>>) {
         let ledger = if let Some(ledger) = ledger {
-            self.compliances.push(Compliance::Ok(Topic::StakingLedger));
+            self.judgments.push(Judgement::Ok(Context::StakingLedger));
             ledger
         } else {
-            self.compliances
-                .push(Compliance::Fault(Topic::StakingLedger));
+            self.judgments
+                .push(Judgement::Fault(Context::StakingLedger));
             return;
         };
 
         if ledger.total >= self.config.bonded_amount {
-            self.compliances.push(Compliance::Ok(Topic::BondedAmount));
+            self.judgments.push(Judgement::Ok(Context::BondedAmount));
         } else {
-            self.compliances
-                .push(Compliance::Fault(Topic::BondedAmount));
+            self.judgments.push(Judgement::Fault(Context::BondedAmount));
         }
     }
 }
