@@ -43,12 +43,9 @@ pub struct RequirementsJudgementReport {
     // TODO: Remove
     pub candidate: Candidate,
     compliances: Vec<Compliance>,
-    faults: PrevNow<usize>,
-    rank: PrevNow<usize>,
+    faults: PrevNow<isize>,
+    rank: PrevNow<isize>,
 }
-
-pub struct Faults(PrevNow<usize>);
-pub struct Rank(PrevNow<usize>);
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PrevNow<T> {
@@ -56,7 +53,7 @@ pub struct PrevNow<T> {
     after_judgement: T,
 }
 
-impl Default for PrevNow<usize> {
+impl Default for PrevNow<isize> {
     fn default() -> Self {
         PrevNow {
             pre_judgement: 0,
@@ -69,8 +66,8 @@ pub struct RequirementsJudgement<'a, T: Balances> {
     candidate: Candidate,
     compliances: Vec<Compliance>,
     config: &'a RequirementsConfig<T::Balance>,
-    faults: PrevNow<usize>,
-    rank: PrevNow<usize>,
+    faults: PrevNow<isize>,
+    rank: PrevNow<isize>,
 }
 
 impl<'a, T: Balances> RequirementsJudgement<'a, T>

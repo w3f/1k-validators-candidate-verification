@@ -1,6 +1,9 @@
 use crate::events::TelemetryEvent;
 use crate::judge::RequirementsProceeding;
-use crate::{database::MongoClient, judge::NetworkAccount};
+use crate::{
+    database::{CandidateState, MongoClient},
+    judge::NetworkAccount,
+};
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use std::convert::TryInto;
@@ -142,8 +145,10 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
             .await?;
 
             for candidate in config.candidates {
-                // TODO: Handle unwrap
-                let state = store.fetch_candidate_state(&candidate).await?.unwrap();
+                let state = store
+                    .fetch_candidate_state(&candidate)
+                    .await?
+                    .unwrap_or(CandidateState::new(candidate));
 
                 let report = proceeding.proceed_requirements(state).await?;
 
@@ -158,8 +163,10 @@ async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Re
             .await?;
 
             for candidate in config.candidates {
-                // TODO: Handle unwrap
-                let state = store.fetch_candidate_state(&candidate).await?.unwrap();
+                let state = store
+                    .fetch_candidate_state(&candidate)
+                    .await?
+                    .unwrap_or(CandidateState::new(candidate));
 
                 let report = proceeding.proceed_requirements(state).await?;
 

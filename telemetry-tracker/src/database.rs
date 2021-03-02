@@ -69,7 +69,7 @@ pub struct CandidateState {
 }
 
 impl CandidateState {
-    fn new(candidate: Candidate) -> Self {
+    pub fn new(candidate: Candidate) -> Self {
         CandidateState {
             candidate: candidate,
             last_requirements_report: LogTimestamp::new(),
@@ -161,7 +161,21 @@ impl CandidateStateStore {
         &self,
         candidate: &Candidate,
     ) -> Result<Option<CandidateState>> {
-        unimplemented!()
+        let doc = self
+            .coll
+            .find_one(
+                doc! {
+                    "candidate": candidate.to_bson()?,
+                },
+                None,
+            )
+            .await?;
+
+        if let Some(doc) = doc {
+            Ok(Some(from_document(doc)?))
+        } else {
+            Ok(None)
+        }
     }
 }
 
