@@ -78,22 +78,19 @@ where
     T::AccountId: Ss58Codec,
 {
     pub fn new(state: CandidateState, config: &'a RequirementsConfig<T::Balance>) -> Result<Self> {
+        let candidate = state.candidate;
+        let (faults, rank) = state
+            .requirements_report
+            .last()
+            .map(|l| (l.event.faults.clone(), l.event.rank.clone()))
+            .unwrap_or((Default::default(), Default::default()));
+
         Ok(RequirementsJudgement {
-            candidate: state.candidate,
+            candidate: candidate,
             compliances: vec![],
             config: config,
-            faults: state
-                .requirements_report
-                .last()
-                .as_ref()
-                .map(|l| l.event.faults.clone())
-                .unwrap_or(Default::default()),
-            rank: state
-                .requirements_report
-                .last()
-                .as_ref()
-                .map(|l| l.event.faults.clone())
-                .unwrap_or(Default::default()),
+            faults: faults,
+            rank: rank,
         })
     }
     pub fn generate_report(self) -> RequirementsJudgementReport {
