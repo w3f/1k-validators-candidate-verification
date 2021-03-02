@@ -348,15 +348,72 @@ impl Default for NodeLocation {
 mod tests {
     use super::*;
 
+    impl NodeId {
+        pub fn alice() -> Self {
+            NodeId(1)
+        }
+        pub fn bob() -> Self {
+            NodeId(2)
+        }
+        pub fn eve() -> Self {
+            NodeId(3)
+        }
+    }
+
+    // TODO: Required?
     impl From<i64> for NodeId {
         fn from(val: i64) -> Self {
             NodeId(val)
         }
     }
 
+    // TODO: Required?
     impl From<String> for NodeVersion {
         fn from(val: String) -> Self {
             NodeVersion(val)
+        }
+    }
+
+    impl HardwareEvent {
+        pub fn alice() -> Self {
+            HardwareEvent {
+                // TODO: Call NodeId::alice().
+                node_id: NodeId(1),
+                hardware: Default::default(),
+            }
+        }
+        pub fn bob() -> Self {
+            HardwareEvent {
+                node_id: NodeId(2),
+                hardware: Default::default(),
+            }
+        }
+        pub fn eve() -> Self {
+            HardwareEvent {
+                node_id: NodeId(3),
+                hardware: Default::default(),
+            }
+        }
+    }
+
+    impl NodeStatsEvent {
+        pub fn alice() -> Self {
+            NodeStatsEvent {
+                node_id: NodeId(1),
+                stats: Default::default(),
+            }
+        }
+        pub fn bob() -> Self {
+            NodeStatsEvent {
+                node_id: NodeId(2),
+                stats: Default::default(),
+            }
+        }
+        pub fn eve() -> Self {
+            NodeStatsEvent {
+                node_id: NodeId(3),
+                stats: Default::default(),
+            }
         }
     }
 

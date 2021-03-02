@@ -4,7 +4,7 @@ use crate::{
     system::Candidate,
 };
 use crate::{Result, ToBson};
-use bson::from_document;
+use bson::{from_document, Document};
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
@@ -212,8 +212,17 @@ impl TelemetryEventStore {
         Ok(())
     }
     pub async fn store_event(&self, event: TelemetryEvent) -> Result<()> {
+        self.store_event_with_timestamp(event, None).await
+    }
+    /// Private method to set timestamp manually. Required by certain tests.
+    async fn store_event_with_timestamp(
+        &self,
+        event: TelemetryEvent,
+        timestamp: Option<LogTimestamp>,
+    ) -> Result<()> {
         let node_id = event.node_id();
         let node_name = event.node_name();
+        let timestamp = timestamp.unwrap_or(LogTimestamp::new());
 
         self.insert_node_info(node_id, node_name).await?;
 
@@ -224,11 +233,11 @@ impl TelemetryEventStore {
                 },
                 doc! {
                     "$set": {
-                        "last_event_lot": LogTimestamp::new().to_bson()?,
+                        "last_event_timestamp": timestamp.to_bson()?,
                     },
                     "$push": {
                         "events": EventLog {
-                            timestamp: LogTimestamp::new(),
+                            timestamp: timestamp,
                             event: event,
                         }.to_bson()?
                     }
@@ -345,13 +354,12 @@ impl TelemetryEventStore {
 
         Ok(names)
     }
-    pub async fn verify_online(
+    pub async fn verify_node_uptime(
         &self,
-        candidate: &Candidate,
+        node_id: &NodeId,
         last: u64,
-        interval: u64,
-    ) -> Result<()> {
-        let node_id = NodeId::default();
+        max_diff: u64,
+    ) -> Result<bool> {
         let events_after = LogTimestamp::new().0 - last as i64;
 
         let mut cursor = self
@@ -360,42 +368,97 @@ impl TelemetryEventStore {
                 vec![
                     doc! {
                         "$match": {
-                            "events.event.timestamp": {
+                            "events.timestamp": {
                                 "$gt": events_after.to_bson()?,
                             },
                             "events.event.content.node_id": node_id.to_bson()?,
                         }
                     },
                     doc! {
-                        "$project": {
-                            "$count": "total_events",
-                            "oldest_timestamp": {
-                                "$min": "events.event.timestamp",
+                        "$addFields": {
+                            "min": {
+                                "$min": "$events.timestamp",
                             },
-                            "latest_timestamp": {
-                                "$max": "events.event.timestamp",
+                            "max": {
+                                "$max": "$events.timestamp",
                             }
                         }
-                    }
+                    },
+                    doc! {
+                        "$facet": {
+                            "total": [
+                                {
+                                    "$count": "total",
+                                }
+                            ],
+                            "timestamps": [
+                                {
+                                    "$project": {
+                                        "_id": 0,
+                                        "min": 1,
+                                        "max": 1,
+                                    }
+                                }
+                            ]
+                        }
+                    },
                 ],
                 None,
             )
             .await?;
 
-        while let Some(doc) = cursor.next().await {
-            let doc = doc?;
+        // Process BSON results
+        let mut docs = cursor
+            .collect::<Vec<std::result::Result<Document, _>>>()
+            .await;
 
-            println!(">> {}", doc.to_string());
+        if docs.len() == 0 || docs.len() > 1 {
+            return Err(anyhow!("invalid query result"));
         }
 
-        Ok(())
+        let doc = docs.remove(0).map_err(|err| anyhow!(""))?;
+
+        println!(">> {}", doc.to_string());
+
+        #[derive(Deserialize, Serialize)]
+        struct QueryResult {
+            total: Vec<HashMap<String, i64>>,
+            timestamps: Vec<HashMap<String, i64>>,
+        }
+
+        // Verify uptime by checking whether the average gap sizes between
+        // events are below the specified time (`max_diff`).
+        let result: QueryResult = from_document(doc)?;
+        let total = result
+            .total
+            .first()
+            .ok_or(anyhow!(""))?
+            .get("total").ok_or(anyhow!(""))?;
+        let max = result
+            .timestamps
+            .first()
+            .ok_or(anyhow!(""))?
+            .get("max")
+            .ok_or(anyhow!(""))?;
+        let min = result
+            .timestamps
+            .first()
+            .ok_or(anyhow!(""))?
+            .get("min")
+            .ok_or(anyhow!(""))?;
+
+        if (max - min) / (total - 1) <= max_diff as i64 {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::{AddedNodeEvent, NodeDetails, NodeId, NodeImplementation, TelemetryEvent};
+    use crate::events::{AddedNodeEvent, HardwareEvent, NodeId, NodeStatsEvent, TelemetryEvent};
 
     #[tokio::test]
     async fn store_event() {
@@ -544,5 +607,42 @@ mod tests {
         assert_eq!(version, NodeVersion::from("2.0".to_string()));
 
         client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn verify_node_uptime() {
+        // Create client.
+        let client = MongoClient::new("mongodb://localhost:27017/", "test_verify_node_uptime")
+            .await
+            .unwrap()
+            .get_telemetry_event_store();
+
+        client.drop().await;
+
+        let messages = [
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
+            (TelemetryEvent::Hardware(HardwareEvent::alice()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 20),
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 30),
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 40),
+        ];
+
+        let starting = LogTimestamp::new().0;
+        for (message, interval) in &messages {
+            client
+                .store_event_with_timestamp(
+                    message.clone(),
+                    Some(LogTimestamp(starting + interval)),
+                )
+                .await
+                .unwrap();
+        }
+
+        client
+            .verify_node_uptime(&NodeId::alice(), 1_000, 10)
+            .await
+            .unwrap();
+
+        //client.drop().await;
     }
 }
