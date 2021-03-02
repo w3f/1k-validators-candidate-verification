@@ -103,10 +103,16 @@ where
             }
         }
 
-        // No matter how many faults occur.
         let mut rank = self.rank.after_judgement;
-        if faults > 0 {
-            rank /= 2;
+
+        // Faults will only influence the rank if the weren't any in the last
+        // judgement process. This prevents halving ranks continuously
+        // (i.e. only half ranks if in the last round the candidate had no faults).
+        if self.faults.after_judgement == 0 {
+            // No matter how many faults occur, just half the rank if there are faults.
+            if faults > 0 {
+                rank /= 2;
+            }
         }
 
         RequirementsJudgementReport {
