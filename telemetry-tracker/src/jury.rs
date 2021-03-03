@@ -1,5 +1,5 @@
 use crate::database::{CandidateState, TelemetryEventStore};
-use crate::judge::{NetworkAccount, ToCandidate};
+use crate::judge::NetworkAccount;
 use crate::system::Candidate;
 use crate::Result;
 use sp_arithmetic::Perbill;

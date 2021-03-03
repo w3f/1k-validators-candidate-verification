@@ -248,23 +248,25 @@ impl TelemetryEventStore {
 
         Ok(())
     }
-    pub async fn get_node_activity_by_name(&self, name: &NodeName) -> Result<Vec<NodeActivity>> {
+    pub async fn get_node_ids_by_name(&self, name: &NodeName) -> Result<Vec<NodeId>> {
         let mut cursor = self
             .coll
             .find(
                 doc! {
                     "node_name": name.to_bson()?,
+                    "_id": 0,
+                    "node_id":  1,
                 },
                 None,
             )
             .await?;
 
-        let mut entries = vec![];
+        let mut node_ids: Vec<NodeId> = vec![];
         while let Some(doc) = cursor.next().await {
-            entries.push(from_document(doc?)?);
+            node_ids.push(from_document(doc?)?);
         }
 
-        Ok(entries)
+        Ok(node_ids)
     }
     pub async fn get_node_activity_by_id(&self, node_id: &NodeId) -> Result<Option<NodeActivity>> {
         if let Some(doc) = self

@@ -97,10 +97,18 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
 #[serde(rename_all = "snake_case")]
 pub struct Candidate {
     stash: String,
+    node_name: String,
     network: Network,
 }
 
 impl Candidate {
+    pub fn new(stash: String, node_name: String, network: Network) -> Self {
+        Candidate {
+            stash: stash,
+            node_name: node_name,
+            network: network,
+        }
+    }
     pub fn stash_str(&self) -> &str {
         self.stash.as_str()
     }
@@ -108,15 +116,6 @@ impl Candidate {
         Ok(T::from_ss58check(&self.stash).map_err(|err| {
             anyhow!("Failed to convert presumed SS58 string into a NetworkAccount")
         })?)
-    }
-}
-
-impl From<(String, Network)> for Candidate {
-    fn from(val: (String, Network)) -> Self {
-        Candidate {
-            stash: val.0,
-            network: val.1,
-        }
     }
 }
 
@@ -231,10 +230,11 @@ async fn requirements_proceeding() {
             commission: 10,
             bonded_amount: 10000,
         },
-        candidates: vec![Candidate::from((
+        candidates: vec![Candidate::new(
             "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
+            "Alice".to_string(),
             Network::Kusama,
-        ))],
+        )],
     };
 
     run_requirements_proceeding(config).await.unwrap();

@@ -27,31 +27,6 @@ impl<T: Clone> NetworkAccount<T> {
     }
 }
 
-// TODO: This required?
-pub trait ToCandidate<T> {
-    fn to_candidate(self) -> Candidate;
-}
-
-impl ToCandidate<DefaultNodeRuntime> for NetworkAccount<<DefaultNodeRuntime as System>::AccountId> {
-    fn to_candidate(self) -> Candidate {
-        Candidate::from((
-            self.raw()
-                .to_ss58check_with_version(Ss58AddressFormat::PolkadotAccount),
-            Network::Polkadot,
-        ))
-    }
-}
-
-impl ToCandidate<KusamaRuntime> for NetworkAccount<<KusamaRuntime as System>::AccountId> {
-    fn to_candidate(self) -> Candidate {
-        Candidate::from((
-            self.raw()
-                .to_ss58check_with_version(Ss58AddressFormat::KusamaAccount),
-            Network::Kusama,
-        ))
-    }
-}
-
 impl From<AccountId32> for NetworkAccount<AccountId32> {
     fn from(val: AccountId32) -> Self {
         NetworkAccount(val)
@@ -137,6 +112,8 @@ where
         } else {
             jury.judge_bonded_amount(None);
         }
+
+
 
         Ok(jury.generate_report())
     }
