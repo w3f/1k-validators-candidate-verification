@@ -5,8 +5,11 @@ use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
+use tokio::time::{self, Duration};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
+
+const UNEXPECTED_EXIT_TIMEOUT: u64 = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -43,59 +46,72 @@ pub struct TelemetryWatcherConfig {
 }
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
-    info!("Opening MongoDB client to database {}", config.db_name);
-    let client = MongoClient::new(&config.db_uri, &config.db_name)
-        .await?
-        .get_telemetry_event_store(&config.network);
+    async fn local(config: &TelemetryWatcherConfig) -> Result<()> {
+        info!("Opening MongoDB client to database {}", &config.db_name);
+        let client = MongoClient::new(&config.db_uri, &config.db_name)
+            .await?
+            .get_telemetry_event_store(&config.network);
 
-    info!("Connecting to telemetry server {}", config.telemetry_host);
-    let (mut stream, _) = connect_async(&config.telemetry_host)
-        .await
-        .map_err(|err| anyhow!("Failed to connect to telemetry server: {:?}", err))?;
+        info!("Connecting to telemetry server {}", config.telemetry_host);
+        let (mut stream, _) = connect_async(&config.telemetry_host)
+            .await
+            .map_err(|err| anyhow!("Failed to connect to telemetry server: {:?}", err))?;
 
-    // Subscribe to specified network.
-    info!("Subscribing to {} node events", config.network.as_ref());
-    stream
-        .send(Message::text(format!(
-            "subscribe:{}",
-            config.network.as_subscription()
-        )))
-        .await
-        .map_err(|err| {
-            anyhow!(
-                "Failed to subscribe to network {}: {:?}",
-                config.network.as_subscription(),
-                err
-            )
-        })?;
+        // Subscribe to specified network.
+        info!("Subscribing to {} node events", config.network.as_ref());
+        stream
+            .send(Message::text(format!(
+                "subscribe:{}",
+                config.network.as_subscription()
+            )))
+            .await
+            .map_err(|err| {
+                anyhow!(
+                    "Failed to subscribe to network {}: {:?}",
+                    config.network.as_subscription(),
+                    err
+                )
+            })?;
 
-    info!(
-        "Starting event loop for {} network",
-        config.network.as_ref()
-    );
-    tokio::spawn(async move {
-        let local = || async move {
-            let store = client;
+        info!(
+            "Starting event loop for {} network",
+            config.network.as_ref()
+        );
 
-            while let Some(msg) = stream.next().await {
-                match msg? {
-                    Message::Binary(content) => {
-                        if let Ok(events) = TelemetryEvent::from_json(&content) {
-                            for event in events {
-                                store.store_event(event).await?;
-                            }
-                        } else {
-                            error!("Failed to deserialize telemetry event");
+        let store = client;
+
+        while let Some(msg) = stream.next().await {
+            match msg? {
+                Message::Binary(content) => {
+                    if let Ok(events) = TelemetryEvent::from_json(&content) {
+                        for event in events {
+                            store.store_event(event).await?;
                         }
+                    } else {
+                        error!("Failed to deserialize telemetry event");
                     }
-                    _ => {}
+                }
+                _ => {}
+            }
+        }
+
+        Result::Ok(())
+    }
+
+    tokio::spawn(async move {
+        loop {
+            match local(&config).await {
+                Ok(_) => info!("Telemetry connection dropped, restarting..."),
+                Err(err) => {
+                    error!(
+                        "Telemetry watcher exited unexpectedly, restarting in {} seconds; {:?}",
+                        UNEXPECTED_EXIT_TIMEOUT, err
+                    );
+                    time::sleep(Duration::from_secs(UNEXPECTED_EXIT_TIMEOUT)).await;
+                    break;
                 }
             }
-
-            Result::Ok(())
-        };
-
-        error!("Exiting telemetry watcher task: {:?}", local().await);
+        }
     });
 
     Ok(())
