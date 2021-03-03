@@ -11,8 +11,8 @@ name = "lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "telemetry-tracker"
-path = "src/bin/telemetry_tracker.rs"
+name = "candidate_verifier"
+path = "src/bin/candidate_verifier.rs"
 
 [dependencies]
 log = "0.4.14"

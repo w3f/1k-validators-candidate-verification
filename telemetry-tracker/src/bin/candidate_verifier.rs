@@ -6,14 +6,14 @@ extern crate serde;
 extern crate anyhow;
 
 use lib::{
-    run_requirements_proceeding, run_telemetry_watcher, Network, RequirementsConfig,
-    RequirementsProceedingConfig, Result, TelemetryWatcherConfig,
+    run_requirements_proceeding, run_telemetry_watcher, Candidate, Network, NodeName,
+    RequirementsConfig, RequirementsProceedingConfig, Result, TelemetryWatcherConfig,
 };
 use std::fs::read_to_string;
 use tokio::time::{self, Duration};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-struct Config {
+struct RootConfig {
     db_url: String,
     db_name: String,
     telemetry_tracker: ConfigWrapper<TelemetryTrackerConfig>,
@@ -42,12 +42,19 @@ struct CandidateVerifierConfig {
 struct CandidateVerifierNetworkConfig {
     network: Network,
     rpc_hostname: String,
+    candidate_file: String,
     requirements_config: RequirementsConfig<u128>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct RawCandidate {
+    name: NodeName,
+    stash: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let root_config: Config = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
+    let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
 
     // Process telemetry tracker configuration.
     let tracker = root_config.telemetry_tracker;
@@ -80,20 +87,26 @@ async fn main() -> Result<()> {
         ))?;
 
         for network_config in verifier_config.networks {
+            let network = network_config.network;
             let specialized = RequirementsProceedingConfig {
                 db_uri: root_config.db_url.clone(),
                 db_name: root_config.db_name.clone(),
                 rpc_hostname: network_config.rpc_hostname,
                 requirements_config: network_config.requirements_config,
-                network: network_config.network,
+                network: network,
             };
 
+            let candidates: Vec<Candidate> = serde_yaml::from_str::<Vec<RawCandidate>>(
+                &read_to_string(&network_config.candidate_file)?,
+            )?
+            .into_iter()
+            .map(|raw| Candidate::new(raw.stash, raw.name, network))
+            .collect();
+
             tokio::spawn(async move {
-                /*
-                if let Err(err) = run_requirements_proceeding(specialized).await {
+                if let Err(err) = run_requirements_proceeding(specialized, candidates).await {
                     error!("Exiting candidate verifier {:?}", err);
                 }
-                */
             });
         }
     }
@@ -102,5 +115,4 @@ async fn main() -> Result<()> {
     loop {
         time::sleep(Duration::from_secs(60)).await;
     }
-    Ok(())
 }

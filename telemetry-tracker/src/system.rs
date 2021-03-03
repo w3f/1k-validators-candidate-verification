@@ -13,7 +13,7 @@ use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Network {
     Polkadot,
@@ -23,8 +23,8 @@ pub enum Network {
 impl AsRef<str> for Network {
     fn as_ref(&self) -> &str {
         match self {
-            Network::Polkadot => "Polkadot",
-            Network::Kusama => "Kusama",
+            Network::Polkadot => "polkadot",
+            Network::Kusama => "kusama",
         }
     }
 }
