@@ -2,13 +2,10 @@ use crate::events::{NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{
     database::{CandidateState, MongoClient},
-    judge::NetworkAccount,
 };
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
-use std::convert::TryInto;
 use substrate_subxt::sp_core::crypto::Ss58Codec;
-use substrate_subxt::{sp_runtime::AccountId32, Runtime};
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -129,7 +126,7 @@ impl Candidate {
         &self.node_name
     }
     pub fn to_account_id<T: Ss58Codec>(&self) -> Result<T> {
-        Ok(T::from_ss58check(&self.stash).map_err(|err| {
+        Ok(T::from_ss58check(&self.stash).map_err(|_err| {
             anyhow!("Failed to convert presumed SS58 string into a NetworkAccount")
         })?)
     }

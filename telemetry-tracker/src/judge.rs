@@ -1,31 +1,20 @@
 use crate::database::{CandidateState, TelemetryEventStore};
-use crate::system::{Candidate, Network};
+use crate::system::{Candidate};
 use crate::Result;
 use crate::{
-    events::NetworkId,
     jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport},
 };
 use std::convert::TryFrom;
 use substrate_subxt::identity::{Identity, IdentityOfStoreExt};
-use substrate_subxt::sp_core::crypto::{AccountId32, Ss58AddressFormat, Ss58Codec};
+use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
 use substrate_subxt::staking::{
     BondedStoreExt, LedgerStoreExt, PayeeStoreExt, Staking, ValidatorsStoreExt,
 };
-use substrate_subxt::system::System;
-use substrate_subxt::{balances::Balances, DefaultNodeRuntime, KusamaRuntime};
+use substrate_subxt::{balances::Balances};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NetworkAccount<T>(T);
-
-impl<T: Clone> NetworkAccount<T> {
-    pub fn raw(&self) -> &T {
-        &self.0
-    }
-    pub fn to_stash(&self) -> T {
-        self.0.clone()
-    }
-}
 
 impl From<AccountId32> for NetworkAccount<AccountId32> {
     fn from(val: AccountId32) -> Self {
@@ -38,7 +27,7 @@ impl TryFrom<Candidate> for NetworkAccount<AccountId32> {
 
     fn try_from(val: Candidate) -> Result<Self> {
         Ok(NetworkAccount(
-            AccountId32::from_ss58check(val.stash_str()).map_err(|err| {
+            AccountId32::from_ss58check(val.stash_str()).map_err(|_err| {
                 anyhow!("Failed to convert presumed SS58 string into a NetworkAccount")
             })?,
         ))
@@ -101,7 +90,7 @@ where
         // Requirement: Controller set.
         debug!("Checking controller requirement");
         let controller = self.client.bonded(account_id.clone(), None).await?;
-        jury.judge_stash_controller_deviation(&controller);
+        jury.judge_stash_controller_deviation(&controller)?;
 
         // Requirement: Bonded amount.
         debug!("Checking bonded amount requirement");

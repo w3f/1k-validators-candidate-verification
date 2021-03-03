@@ -1,4 +1,4 @@
-use crate::judge::NetworkAccount;
+
 use crate::system::Candidate;
 use crate::Result;
 use crate::{
@@ -6,12 +6,12 @@ use crate::{
     events::NodeId,
 };
 use sp_arithmetic::Perbill;
-use std::convert::TryFrom;
+
 use substrate_subxt::identity::{Data, Judgement as RegistrarJudgement, Registration};
 use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::staking::{RewardDestination, StakingLedger};
-use substrate_subxt::Runtime;
-use substrate_subxt::{balances::Balances, sp_runtime::AccountId32};
+
+use substrate_subxt::{balances::Balances};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -216,7 +216,7 @@ where
         };
 
         if &T::AccountId::from_ss58check(self.candidate.stash_str())
-            .map_err(|err| anyhow!("failed to convert candidate to T::AccountId"))?
+            .map_err(|err| anyhow!("failed to convert candidate to T::AccountId: {:?}", err))?
             != controller
         {
             self.judgments

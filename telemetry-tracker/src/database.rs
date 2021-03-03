@@ -276,6 +276,8 @@ impl TelemetryEventStore {
 
         Ok(node_ids)
     }
+    // TODO: Required?
+    #[allow(unused)]
     pub async fn get_node_activity_by_id(&self, node_id: &NodeId) -> Result<Option<NodeActivity>> {
         if let Some(doc) = self
             .coll
@@ -292,6 +294,8 @@ impl TelemetryEventStore {
             Ok(None)
         }
     }
+    // TODO: Make use of this.
+    #[allow(unused)]
     pub async fn get_majority_client_version(&self) -> Result<Option<NodeVersion>> {
         let mut cursor = self
             .coll
@@ -343,6 +347,7 @@ impl TelemetryEventStore {
         Ok(m_version)
     }
     // TODO: Required?
+    #[allow(unused)]
     pub async fn get_observed_names(&self) -> Result<Vec<NodeName>> {
         let mut cursor = self
             .coll
@@ -372,7 +377,7 @@ impl TelemetryEventStore {
     ) -> Result<bool> {
         let events_after = LogTimestamp::new().0 - last as i64;
 
-        let mut cursor = self
+        let cursor = self
             .coll
             .aggregate(
                 vec![
@@ -419,7 +424,7 @@ impl TelemetryEventStore {
             return Err(anyhow!("invalid query result"));
         }
 
-        let doc = docs.remove(0).map_err(|err| anyhow!(""))?;
+        let doc = docs.remove(0).map_err(|_err| anyhow!(""))?;
 
         #[derive(Deserialize, Serialize)]
         struct QueryResult {
