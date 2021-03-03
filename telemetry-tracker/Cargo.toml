@@ -11,7 +11,7 @@ name = "lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "candidate_verifier"
+name = "candidate-verifier"
 path = "src/bin/candidate_verifier.rs"
 
 [dependencies]

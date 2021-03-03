@@ -1,13 +1,13 @@
-db_uri: ""
-db_name: ""
+db_uri: "mongodb://localhost:27017/"
+db_name: "candidate_verifier"
 telemetry_tracker:
   enabled: true
-  telemetry_host: ""
+  telemetry_host: "wss://telemetry-backend.w3f.community/feed"
   networks:
     - "polkadot"
     - "kusama"
 candidate_verifier:
-  enabled: true
+  enabled: false
   networks:
     - network: "polkadot"
       rpc_hostname: "wss://rpc.polkadot.io"

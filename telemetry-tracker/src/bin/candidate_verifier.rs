@@ -14,7 +14,7 @@ use tokio::time::{self, Duration};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct RootConfig {
-    db_url: String,
+    db_uri: String,
     db_name: String,
     telemetry_tracker: ConfigWrapper<TelemetryTrackerConfig>,
     candidate_verifier: ConfigWrapper<CandidateVerifierConfig>,
@@ -54,6 +54,10 @@ struct RawCandidate {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
     let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
 
     // Process telemetry tracker configuration.
@@ -65,17 +69,13 @@ async fn main() -> Result<()> {
 
         for network in tracker_config.networks {
             let specialized = TelemetryWatcherConfig {
-                db_uri: root_config.db_url.clone(),
+                db_uri: root_config.db_uri.clone(),
                 db_name: root_config.db_name.clone(),
                 telemetry_host: tracker_config.telemetry_host.clone(),
                 network: network,
             };
 
-            tokio::spawn(async move {
-                if let Err(err) = run_telemetry_watcher(specialized).await {
-                    error!("Exiting telemetry watcher: {:?}", err);
-                }
-            });
+            run_telemetry_watcher(specialized).await?;
         }
     }
 
@@ -83,13 +83,13 @@ async fn main() -> Result<()> {
     let verifier = root_config.candidate_verifier;
     if verifier.enabled {
         let verifier_config = verifier.config.ok_or(anyhow!(
-            "No configuration is provided for (enableD) candidate verifier"
+            "No configuration is provided for (enabled) candidate verifier"
         ))?;
 
         for network_config in verifier_config.networks {
             let network = network_config.network;
             let specialized = RequirementsProceedingConfig {
-                db_uri: root_config.db_url.clone(),
+                db_uri: root_config.db_uri.clone(),
                 db_name: root_config.db_name.clone(),
                 rpc_hostname: network_config.rpc_hostname,
                 requirements_config: network_config.requirements_config,

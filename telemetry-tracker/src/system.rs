@@ -20,6 +20,16 @@ pub enum Network {
     Kusama,
 }
 
+impl Network {
+    // A string with the first letter capitalized. Required for telemetry subscription.
+    pub fn as_subscription(&self) -> &str {
+        match self {
+            Network::Polkadot => "Polkadot",
+            Network::Kusama => "Kusama",
+        }
+    }
+}
+
 impl AsRef<str> for Network {
     fn as_ref(&self) -> &str {
         match self {
@@ -38,33 +48,33 @@ pub struct TelemetryWatcherConfig {
 }
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
-    info!("Opening MongoDB client");
+    info!("Opening MongoDB client to database {}", config.db_name);
     let client = MongoClient::new(&config.db_uri, &config.db_name)
         .await?
         .get_telemetry_event_store(&config.network);
 
-    info!("Connecting to telemetry server");
+    info!("Connecting to telemetry server {}", config.telemetry_host);
     let (mut stream, _) = connect_async(&config.telemetry_host)
         .await
         .map_err(|err| anyhow!("Failed to connect to telemetry server: {:?}", err))?;
 
     // Subscribe to specified network.
-    info!("Subscribing to {} network", config.network.as_ref());
+    info!("Subscribing to {} node events", config.network.as_ref());
     stream
         .send(Message::text(format!(
             "subscribe:{}",
-            config.network.as_ref()
+            config.network.as_subscription()
         )))
         .await
         .map_err(|err| {
             anyhow!(
                 "Failed to subscribe to network {}: {:?}",
-                config.network.as_ref(),
+                config.network.as_subscription(),
                 err
             )
         })?;
 
-    info!("Starting event loop");
+    info!("Starting event loop for {} network", config.network.as_ref());
     tokio::spawn(async move {
         let local = || async move {
             let store = client;
