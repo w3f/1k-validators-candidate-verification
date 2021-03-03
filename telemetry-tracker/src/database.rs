@@ -381,25 +381,18 @@ impl TelemetryEventStore {
                             },
                             "max": {
                                 "$max": "$events.timestamp",
+                            },
+                            "total": {
+                                "$size": "$events",
                             }
                         }
                     },
                     doc! {
-                        "$facet": {
-                            "total": [
-                                {
-                                    "$count": "total",
-                                }
-                            ],
-                            "timestamps": [
-                                {
-                                    "$project": {
-                                        "_id": 0,
-                                        "min": 1,
-                                        "max": 1,
-                                    }
-                                }
-                            ]
+                        "$project": {
+                            "_id": 0,
+                            "min": 1,
+                            "max": 1,
+                            "total": 1,
                         }
                     },
                 ],
@@ -418,36 +411,18 @@ impl TelemetryEventStore {
 
         let doc = docs.remove(0).map_err(|err| anyhow!(""))?;
 
-        println!(">> {}", doc.to_string());
-
         #[derive(Deserialize, Serialize)]
         struct QueryResult {
-            total: Vec<HashMap<String, i64>>,
-            timestamps: Vec<HashMap<String, i64>>,
+            min: i64,
+            max: i64,
+            total: i64,
         }
 
         // Verify uptime by checking whether the average gap sizes between
         // events are below the specified time (`max_diff`).
-        let result: QueryResult = from_document(doc)?;
-        let total = result
-            .total
-            .first()
-            .ok_or(anyhow!(""))?
-            .get("total").ok_or(anyhow!(""))?;
-        let max = result
-            .timestamps
-            .first()
-            .ok_or(anyhow!(""))?
-            .get("max")
-            .ok_or(anyhow!(""))?;
-        let min = result
-            .timestamps
-            .first()
-            .ok_or(anyhow!(""))?
-            .get("min")
-            .ok_or(anyhow!(""))?;
+        let res: QueryResult = from_document(doc)?;
 
-        if (max - min) / (total - 1) <= max_diff as i64 {
+        if (res.max - res.min) / (res.total.saturating_sub(1)) <= max_diff as i64 {
             Ok(true)
         } else {
             Ok(false)
@@ -638,11 +613,13 @@ mod tests {
                 .unwrap();
         }
 
-        client
+        let is_online = client
             .verify_node_uptime(&NodeId::alice(), 1_000, 10)
             .await
             .unwrap();
 
-        //client.drop().await;
+        assert!(is_online);
+
+        client.drop().await;
     }
 }
