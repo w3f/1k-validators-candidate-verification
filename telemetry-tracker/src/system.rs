@@ -74,7 +74,10 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
             )
         })?;
 
-    info!("Starting event loop for {} network", config.network.as_ref());
+    info!(
+        "Starting event loop for {} network",
+        config.network.as_ref()
+    );
     tokio::spawn(async move {
         let local = || async move {
             let store = client;
