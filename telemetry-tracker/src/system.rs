@@ -31,10 +31,10 @@ impl AsRef<str> for Network {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TelemetryWatcherConfig {
-    db_uri: String,
-    db_name: String,
-    telemetry_host: String,
-    network: Network,
+    pub db_uri: String,
+    pub db_name: String,
+    pub telemetry_host: String,
+    pub network: Network,
 }
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
@@ -124,11 +124,11 @@ impl Candidate {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequirementsProceedingConfig {
-    db_uri: String,
-    db_name: String,
-    network: Network,
-    rpc_hostname: String,
-    requirements_config: RequirementsConfig<u128>,
+    pub db_uri: String,
+    pub db_name: String,
+    pub network: Network,
+    pub rpc_hostname: String,
+    pub requirements_config: RequirementsConfig<u128>,
 }
 
 pub async fn run_requirements_proceeding(config: RequirementsProceedingConfig, candidates: Vec<Candidate>) -> Result<()> {

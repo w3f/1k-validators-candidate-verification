@@ -6,37 +6,73 @@ extern crate serde;
 extern crate anyhow;
 
 use lib::{
-    run_requirements_proceeding, run_telemetry_watcher, ConfigWrapper,
-    RequirementsProceedingConfig, Result, TelemetryWatcherConfig,
+    run_requirements_proceeding, run_telemetry_watcher,
+    RequirementsProceedingConfig, Result, TelemetryWatcherConfig, Network
 };
 use std::fs::read_to_string;
 use tokio::time::{self, Duration};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct Config {
-    telemetry_tracker: ConfigWrapper<TelemetryWatcherConfig>,
-    candidate_verifier: ConfigWrapper<RequirementsProceedingConfig>,
+    db_url: String,
+    db_name: String,
+    telemetry_tracker: ConfigWrapper<TelemetryTrackerConfig>,
+    candidate_verifier: ConfigWrapper<CandidateVerifierConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ConfigWrapper<T> {
+    pub enabled: bool,
+    #[serde(flatten)]
+    pub config: Option<T>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct TelemetryTrackerConfig {
+    telemetry_host: String,
+    networks: Vec<Network>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct CandidateVerifierConfig {
+    networks: Vec<CandidateVerifierNetworkConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct CandidateVerifierNetworkConfig {
+    network: Network,
+    rpc_hostname: String,
+    requirements_config: RequirementsProceedingConfig,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    /*
-    let config: Config = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
+    let root_config: Config = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
 
     // Process telemetry tracker configuration.
-    let tracker = config.telemetry_tracker;
+    let tracker = root_config.telemetry_tracker;
     if tracker.enabled {
-        let config = tracker.config.ok_or(anyhow!(
+        let tracker_config = tracker.config.ok_or(anyhow!(
             "No configuration is provided for (enabled) telemetry tracker"
         ))?;
 
-        tokio::spawn(async move {
-            if let Err(err) = run_telemetry_watcher(config).await {
-                error!("Exiting telemetry watcher: {:?}", err);
-            }
-        });
+        for network in tracker_config.networks {
+            let specialized = TelemetryWatcherConfig {
+                db_uri: root_config.db_url.clone(),
+                db_name: root_config.db_name.clone(),
+                telemetry_host: tracker_config.telemetry_host.clone(),
+                network: network,
+            };
+
+            tokio::spawn(async move {
+                if let Err(err) = run_telemetry_watcher(specialized).await {
+                    error!("Exiting telemetry watcher: {:?}", err);
+                }
+            });
+        }
     }
 
+    /*
     // Process candidate verifier configuration.
     let verifier = config.candidate_verifier;
     if verifier.enabled {
@@ -50,11 +86,11 @@ async fn main() -> Result<()> {
             }
         });
     }
+    */
 
     // Hold it here forever.
     loop {
         time::sleep(Duration::from_secs(60)).await;
     }
-    */
     Ok(())
 }

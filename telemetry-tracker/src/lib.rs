@@ -20,15 +20,8 @@ mod system;
 // Re-exports
 pub use system::{
     run_requirements_proceeding, run_telemetry_watcher, RequirementsProceedingConfig,
-    TelemetryWatcherConfig,
+    TelemetryWatcherConfig, Network,
 };
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ConfigWrapper<T> {
-    pub enabled: bool,
-    #[serde(flatten)]
-    pub config: Option<T>,
-}
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
 

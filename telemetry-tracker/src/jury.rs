@@ -40,10 +40,10 @@ pub enum Judgement {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequirementsConfig<Balance> {
-    pub commission: u32,
-    pub bonded_amount: Balance,
-    pub last: u64,
-    pub max_diff: u64,
+    pub max_commission: u32,
+    pub min_bonded_amount: Balance,
+    pub node_activity_timespan: u64,
+    pub max_node_activity_diff: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -196,7 +196,7 @@ where
         }
     }
     pub fn judge_commission(&mut self, commission: Perbill) {
-        if commission.deconstruct() <= (self.config.commission * 1_000_000) {
+        if commission.deconstruct() <= (self.config.max_commission * 1_000_000) {
             self.judgments.push(Judgement::Ok(Context::Commission));
         } else {
             self.judgments.push(Judgement::Fault(Context::Commission));
@@ -238,7 +238,7 @@ where
             return;
         };
 
-        if ledger.total >= self.config.bonded_amount {
+        if ledger.total >= self.config.min_bonded_amount {
             self.judgments.push(Judgement::Ok(Context::BondedAmount));
         } else {
             self.judgments.push(Judgement::Fault(Context::BondedAmount));
@@ -260,7 +260,7 @@ where
         for id in node_ids {
             let is_ok = self
                 .telemetry_store
-                .verify_node_uptime(id, self.config.last, self.config.max_diff)
+                .verify_node_uptime(id, self.config.node_activity_timespan, self.config.max_node_activity_diff)
                 .await?;
             if is_ok {
                 is_compliant = true;
