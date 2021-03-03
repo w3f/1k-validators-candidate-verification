@@ -198,6 +198,7 @@ pub async fn run_requirements_proceeding(
 }
 
 #[tokio::test]
+#[ignore]
 async fn telemetry() {
     let (mut stream, _) = connect_async("wss://telemetry-backend.w3f.community/feed")
         .await
@@ -229,6 +230,7 @@ async fn telemetry() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn requirements_proceeding() {
     //env_logger::init();
 
