@@ -585,9 +585,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_node_uptime() {
+    async fn verify_node_uptime_valid() {
         // Create client.
-        let client = MongoClient::new("mongodb://localhost:27017/", "test_verify_node_uptime")
+        let client = MongoClient::new("mongodb://localhost:27017/", "test_verify_node_uptime_valid")
             .await
             .unwrap()
             .get_telemetry_event_store();
@@ -619,6 +619,44 @@ mod tests {
             .unwrap();
 
         assert!(is_online);
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn verify_node_uptime_invalid() {
+        // Create client.
+        let client = MongoClient::new("mongodb://localhost:27017/", "test_verify_node_uptime_invalid")
+            .await
+            .unwrap()
+            .get_telemetry_event_store();
+
+        client.drop().await;
+
+        let messages = [
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
+            (TelemetryEvent::Hardware(HardwareEvent::alice()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 40),
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 50),
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 60),
+        ];
+
+        let starting = LogTimestamp::new().0;
+        for (message, interval) in &messages {
+            client
+                .store_event_with_timestamp(
+                    message.clone(),
+                    Some(LogTimestamp(starting + interval)),
+                )
+                .await
+                .unwrap();
+        }
+
+        let is_online = client
+            .verify_node_uptime(&NodeId::alice(), 1_000, 10)
+            .await
+            .unwrap();
+
+        assert!(!is_online);
 
         client.drop().await;
     }
