@@ -1,0 +1,10 @@
+node_modules
+yarn-error.log
+package-lock.json
+config/main.json
+config/secret.json
+*.db
+combined.log
+scripts/test
+config.json*
+build

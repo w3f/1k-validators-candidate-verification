@@ -1,0 +1,157 @@
+version: 2
+
+jobs:
+  checkDependencies:
+    docker:
+      - image: node:slim
+    steps:
+      - checkout
+      - run:
+          command: |
+            yarn audit
+
+  checkESLint:
+    docker:
+      - image: node:slim
+    resource_class: large      
+    steps:
+      - checkout
+      - run:
+          command: |
+            yarn; yarn lint
+
+  unitTests:
+    docker:
+      - image: node:slim
+    steps:
+      - checkout
+      - run:
+          command: |
+            yarn
+
+  helmLint:
+    docker:
+      - image: web3f/ci-commons:v2.4.4
+    steps:
+      - checkout
+      - run:
+          command: |
+            helm lint ./charts/otv-backend
+
+  buildImage:
+    docker:
+      - image: web3f/ci-commons:v2.4.4
+    resource_class: xlarge
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          command: |
+            /scripts/build-image.sh web3f/otv-backend .
+
+  integrationTests:
+    docker:
+      - image: web3f/ci-commons:v2.4.4
+    resource_class: xlarge
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          command: |
+            /scripts/integration-tests.sh
+
+  publishImage:
+    docker:
+      - image: web3f/ci-commons:v2.4.4
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          command: |
+            /scripts/publish-image.sh web3f/otv-backend
+
+  publishChart:
+    docker:
+      - image: web3f/ci-commons:v2.4.4
+    steps:
+      - checkout
+      - run:
+          command: |
+            /scripts/publish-chart.sh
+
+  deploy:
+    docker:
+      - image: web3f/ci-commons:v2.4.4
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          environment:
+            HELM_ENV: production
+          command: |
+            /scripts/deploy.sh -c community
+
+workflows:
+  version: 2
+  test_and_deploy:
+    jobs:
+      - checkDependencies:
+          filters:
+            tags:
+              only: /.*/
+      - checkESLint:
+          filters:
+            tags:
+              only: /.*/
+      - unitTests:
+          filters:
+            tags:
+              only: /.*/
+      - helmLint:
+          filters:
+            tags:
+              only: /.*/
+      - buildImage:
+          context: dockerhub-bot
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - unitTests
+      - integrationTests:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - helmLint
+            - buildImage
+      - publishImage:
+          context: dockerhub-bot
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+          requires:
+            - integrationTests
+      - publishChart:
+          context: github-bot
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+          requires:
+            - integrationTests
+      - deploy:
+          context: digital_ocean_access
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+          requires:
+            - publishImage
+            - publishChart
+
+

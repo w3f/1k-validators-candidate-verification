@@ -1,0 +1,45 @@
+{
+    "global": {
+        "test": true,
+        "dryRun": false,
+        "wsEndpoint": "ws://172.28.1.1:9945"
+    },
+    "db": {
+        "migrate": false,
+        "mongo": {
+            "uri": "mongodb://localhost:27017",
+            "dbName": "otv",
+            "collection": "otv"
+        },
+        "storageFile": "validator.db"
+    },
+    "matrix": {
+        "enabled": false,
+        "baseUrl": "https://matrix.org",
+        "room": "!xxxxx:web3.foundation",
+        "userId": "@1kv-stats:matrix.org"
+    },
+    "scorekeeper": {
+        "candidates": [
+            {
+                "name": "Alice",
+                "stash": "5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY"
+            },
+            {
+                "name": "Bob",
+                "stash": "5HpG9w8EBLe5XCrbczpwq5TSXvedjrBGCwqxK1iQ7qUsSWFc"
+            }
+        ],
+        "forceRound": true,
+        "nominating": true
+    },
+    "server": {
+        "port": 3300
+    },
+    "telemetry": {
+        "chains": [
+            "Local Testnet"
+        ],
+        "host": "ws://172.28.1.3:8000/feed"
+    }
+}
