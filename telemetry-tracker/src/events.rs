@@ -354,6 +354,7 @@ impl Default for NodeLocation {
 mod tests {
     use super::*;
 
+    #[allow(dead_code)]
     impl NodeId {
         pub fn alice() -> Self {
             NodeId(1)
@@ -380,6 +381,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     impl HardwareEvent {
         pub fn alice() -> Self {
             HardwareEvent {
@@ -402,6 +404,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     impl NodeStatsEvent {
         pub fn alice() -> Self {
             NodeStatsEvent {
@@ -423,6 +426,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     impl AddedNodeEvent {
         pub fn alice() -> Self {
             AddedNodeEvent {

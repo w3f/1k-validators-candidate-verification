@@ -1,4 +1,3 @@
-
 use crate::system::Candidate;
 use crate::Result;
 use crate::{
@@ -11,7 +10,7 @@ use substrate_subxt::identity::{Data, Judgement as RegistrarJudgement, Registrat
 use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::staking::{RewardDestination, StakingLedger};
 
-use substrate_subxt::{balances::Balances};
+use substrate_subxt::balances::Balances;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]

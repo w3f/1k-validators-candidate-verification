@@ -1,16 +1,14 @@
 use crate::database::{CandidateState, TelemetryEventStore};
-use crate::system::{Candidate};
+use crate::jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport};
+use crate::system::Candidate;
 use crate::Result;
-use crate::{
-    jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport},
-};
 use std::convert::TryFrom;
+use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Identity, IdentityOfStoreExt};
 use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
 use substrate_subxt::staking::{
     BondedStoreExt, LedgerStoreExt, PayeeStoreExt, Staking, ValidatorsStoreExt,
 };
-use substrate_subxt::{balances::Balances};
 use substrate_subxt::{Client, ClientBuilder, Runtime};
 
 #[derive(Debug, Clone, Eq, PartialEq)]

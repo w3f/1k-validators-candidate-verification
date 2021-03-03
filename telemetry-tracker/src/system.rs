@@ -1,8 +1,6 @@
+use crate::database::{CandidateState, MongoClient};
 use crate::events::{NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
-use crate::{
-    database::{CandidateState, MongoClient},
-};
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use substrate_subxt::sp_core::crypto::Ss58Codec;
@@ -235,23 +233,25 @@ async fn requirements_proceeding() {
     //env_logger::init();
 
     let config = RequirementsProceedingConfig {
-        enabled: true,
         db_uri: "mongodb://localhost:27017/".to_string(),
         db_name: "test_candidate_requirements".to_string(),
         network: Network::Kusama,
         rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
         requirements_config: RequirementsConfig {
-            commission: 10,
-            bonded_amount: 10000,
-            last: 0,
-            max_diff: 0,
+            max_commission: 10,
+            min_bonded_amount: 10000,
+            node_activity_timespan: 0,
+            max_node_activity_diff: 0,
         },
-        candidates: vec![Candidate::new(
-            "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
-            NodeName::new("Alice".to_string()),
-            Network::Kusama,
-        )],
     };
 
-    run_requirements_proceeding(config).await.unwrap();
+    let candidates = vec![Candidate::new(
+        "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
+        NodeName::new("Alice".to_string()),
+        Network::Kusama,
+    )];
+
+    run_requirements_proceeding(config, candidates)
+        .await
+        .unwrap();
 }

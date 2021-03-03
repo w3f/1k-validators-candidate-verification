@@ -114,10 +114,6 @@ pub struct CandidateStateStore {
 }
 
 impl CandidateStateStore {
-    #[cfg(test)]
-    async fn drop(&self) {
-        self.coll.drop(None).await.unwrap();
-    }
     // TODO: Is this necessary?
     async fn insert_candidate_state(&self, candidate: &Candidate) -> Result<()> {
         self.coll
@@ -449,6 +445,7 @@ impl TelemetryEventStore {
 mod tests {
     use super::*;
     use crate::events::{AddedNodeEvent, HardwareEvent, NodeId, NodeStatsEvent, TelemetryEvent};
+    use crate::system::Network;
 
     #[tokio::test]
     async fn store_event() {
@@ -456,7 +453,7 @@ mod tests {
         let client = MongoClient::new("mongodb://localhost:27017/", "test_store_event")
             .await
             .unwrap()
-            .get_telemetry_event_store();
+            .get_telemetry_event_store(&Network::Polkadot);
 
         client.drop().await;
 
@@ -567,7 +564,7 @@ mod tests {
         )
         .await
         .unwrap()
-        .get_telemetry_event_store();
+        .get_telemetry_event_store(&Network::Polkadot);
 
         client.drop().await;
 
@@ -608,7 +605,7 @@ mod tests {
         )
         .await
         .unwrap()
-        .get_telemetry_event_store();
+        .get_telemetry_event_store(&Network::Polkadot);
 
         client.drop().await;
 
@@ -649,7 +646,7 @@ mod tests {
         )
         .await
         .unwrap()
-        .get_telemetry_event_store();
+        .get_telemetry_event_store(&Network::Polkadot);
 
         client.drop().await;
 
