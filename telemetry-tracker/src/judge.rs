@@ -83,7 +83,6 @@ where
 
         let account_id = state.candidate.to_account_id::<T::AccountId>()?;
 
-        println!("GOT HERE");
         // Requirement: Identity.
         debug!("Checking identity requirement");
         let identity = self.client.identity_of(account_id.clone(), None).await?;

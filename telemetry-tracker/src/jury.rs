@@ -245,10 +245,11 @@ where
     }
     pub async fn judge_node_uptime(&mut self, node_ids: &[NodeId]) -> Result<()> {
         if !node_ids.is_empty() {
-            self.judgments.push(Judgement::Ok(Context::NodeNameFound))
+            self.judgments.push(Judgement::Ok(Context::NodeNameFound));
         } else {
             self.judgments
-                .push(Judgement::Fault(Context::NodeNameFound))
+                .push(Judgement::Fault(Context::NodeNameFound));
+            return Ok(());
         }
 
         let mut is_compliant = false;
