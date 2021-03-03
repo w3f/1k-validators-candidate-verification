@@ -6,6 +6,18 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "candidate-validator"
+path = "src/bin/candidate_validator.rs"
+
+[[bin]]
+name = "telemetry-tracker"
+path = "src/bin/telemetry_tracker.rs"
+
 [dependencies]
 log = "0.4.14"
 env_logger = "0.8.3"
