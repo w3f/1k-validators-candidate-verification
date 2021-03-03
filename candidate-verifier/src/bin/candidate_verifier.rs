@@ -16,7 +16,7 @@ use tokio::time::{self, Duration};
 struct RootConfig {
     db_uri: String,
     db_name: String,
-    telemetry_tracker: ConfigWrapper<TelemetryTrackerConfig>,
+    telemetry_watcher: ConfigWrapper<TelemetryTrackerConfig>,
     candidate_verifier: ConfigWrapper<CandidateVerifierConfig>,
 }
 
@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
     let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
 
     // Process telemetry tracker configuration.
-    let tracker = root_config.telemetry_tracker;
+    let tracker = root_config.telemetry_watcher;
     if tracker.enabled {
         let tracker_config = tracker.config.ok_or(anyhow!(
             "No configuration is provided for (enabled) telemetry tracker"
