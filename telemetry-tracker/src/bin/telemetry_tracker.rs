@@ -20,6 +20,7 @@ struct Config {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    /*
     let config: Config = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
 
     // Process telemetry tracker configuration.
@@ -54,4 +55,6 @@ async fn main() -> Result<()> {
     loop {
         time::sleep(Duration::from_secs(60)).await;
     }
+    */
+    Ok(())
 }

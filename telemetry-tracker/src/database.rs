@@ -1,7 +1,7 @@
 use crate::{
     events::{NodeId, NodeName, NodeVersion, TelemetryEvent},
     jury::RequirementsJudgementReport,
-    system::Candidate,
+    system::{Candidate, Network},
 };
 use crate::{Result, ToBson};
 use bson::{from_document, Document};
@@ -88,14 +88,14 @@ impl MongoClient {
             db: Client::with_uri_str(uri).await?.database(db),
         })
     }
-    pub fn get_candidate_state_store(&self) -> CandidateStateStore {
+    pub fn get_candidate_state_store(&self, network: &Network) -> CandidateStateStore {
         CandidateStateStore {
-            coll: self.db.collection(CANDIDATE_STATE_STORE_COLLECTION),
+            coll: self.db.collection(&format!("{}_{}", CANDIDATE_STATE_STORE_COLLECTION, network.as_ref())),
         }
     }
-    pub fn get_telemetry_event_store(&self) -> TelemetryEventStore {
+    pub fn get_telemetry_event_store(&self, network: &Network) -> TelemetryEventStore {
         TelemetryEventStore {
-            coll: self.db.collection(TELEMETRY_EVENT_STORE_COLLECTION),
+            coll: self.db.collection(&format!("{}_{}", TELEMETRY_EVENT_STORE_COLLECTION, network.as_ref())),
         }
     }
 }

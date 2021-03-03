@@ -31,17 +31,17 @@ impl AsRef<str> for Network {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TelemetryWatcherConfig {
-    uri: String,
-    database: String,
+    db_uri: String,
+    db_name: String,
     telemetry_host: String,
     network: Network,
 }
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
     info!("Opening MongoDB client");
-    let client = MongoClient::new(&config.uri, &config.database)
+    let client = MongoClient::new(&config.db_uri, &config.db_name)
         .await?
-        .get_telemetry_event_store();
+        .get_telemetry_event_store(&config.network);
 
     info!("Connecting to telemetry server");
     let (mut stream, _) = connect_async(&config.telemetry_host)
@@ -124,22 +124,19 @@ impl Candidate {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequirementsProceedingConfig {
-    enabled: bool,
     db_uri: String,
     db_name: String,
     network: Network,
     rpc_hostname: String,
     requirements_config: RequirementsConfig<u128>,
-    candidates: Vec<Candidate>,
 }
 
-pub async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Result<()> {
+pub async fn run_requirements_proceeding(config: RequirementsProceedingConfig, candidates: Vec<Candidate>) -> Result<()> {
     info!("Opening MongoDB client");
     let store = MongoClient::new(&config.db_uri, &config.db_name).await?;
 
-    let candidate_store = store.get_candidate_state_store();
-
-    let telemetry_store = store.get_telemetry_event_store();
+    let candidate_store = store.get_candidate_state_store(&config.network);
+    let telemetry_store = store.get_telemetry_event_store(&config.network);
 
     match config.network {
         Network::Polkadot => {
@@ -150,7 +147,7 @@ pub async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -
             )
             .await?;
 
-            for candidate in config.candidates {
+            for candidate in candidates {
                 let state = candidate_store
                     .fetch_candidate_state(&candidate)
                     .await?
@@ -171,7 +168,7 @@ pub async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -
             )
             .await?;
 
-            for candidate in config.candidates {
+            for candidate in candidates {
                 let state = candidate_store
                     .fetch_candidate_state(&candidate)
                     .await?
