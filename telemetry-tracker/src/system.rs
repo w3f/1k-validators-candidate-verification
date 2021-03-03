@@ -232,6 +232,8 @@ async fn requirements_proceeding() {
         requirements_config: RequirementsConfig {
             commission: 10,
             bonded_amount: 10000,
+            last: 0,
+            max_diff: 0,
         },
         candidates: vec![Candidate::new(
             "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),

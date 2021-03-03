@@ -1,0 +1,643 @@
+---
+- name: LetzBake!
+  stash: Cp4U5UYg2FaVUpyEtQgfBm9aqge6EEPkJxEFVZFYy7L1AZF
+- name: 🎠 Forbole GP01 🇭🇰
+  stash: D9rwRxuG8xm8TZf5tgkbPxhhTJK5frCJU9wvp59VRjcMkUf
+- name: 🔱-Masternode24-🔱
+  stash: FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ
+- name: 🔱-Masternode25-🔱
+  stash: FNztLLstrnThEEctuH2C9Kw1d73xVVxm2crji2mkb4ioXsn
+- name: Anonstake
+  stash: J4hAvZoHCviZSoPHoSwLida8cEkZR1NXJcGrcfx9saHTk7D
+- name: Anson&Fabio-sv-public-temp
+  stash: CmD9vaMYoiKe7HiFnfkftwvhKbxN9bhyjcDrfFRGbifJEG8
+- name: Cat
+  stash: ErhkFXudde5xXFVMGUtNpiPLvZ9zcvqM3ueRLukDdpjszys
+- name: Indigo One
+  stash: EPhtbjecJ9P2SQEGEJ4XmFS4xN7JioBFarSrbqjhj8BuJ2v
+- name: KIRA Staking
+  stash: HhcrzHdB5iBx823XNfBUukjj4TUGzS9oXS8brwLm4ovMuVp
+- name: moonlime
+  stash: GCNHHRBtpDcgADCaRPMNNk52JiitGrcv3DMQxwE6owXAfbt
+- name: Staker_Space-sv-validator-1
+  stash: FcjmeNzPk3vgdENm1rHeiMCxFK96beUoi2kb59FmCoZtkGF
+- name: Genesis Lab
+  stash: DuRV4MSm54UoX3MpFe3P7rxjBFLfnKRThxG66s4n3yF8qbJ
+- name: 🔒stateless_money-2🔒
+  stash: HZvvFHgPdhDr6DHN43xT1sP5fDyzLDFv5t5xwmXBrm6dusm
+- name: 🔒stateless_money-1🔒
+  stash: Cdaq3iUobZLYD2d8oqRQf1VKuRo6H64KsMBgJyxap4ZnARX
+- name: Rick_Sanchez_C137
+  stash: Feu9bCUFaYSbkeqSY485kJjUoizp9CG4z3iSnGMwTqWSLeH
+- name: WolfEdge-Capital
+  stash: EtJ4HxHYEDvYWRJAdmV4hYpTbGMJCmEgnLC8zAf6u5ZyT7C
+- name: 🐑 Hodl_dot_farm 🐑
+  stash: D3bm5eAeiRezwZp4tWTX4sZN3u8nXy2Fo21U59smznYHu3F
+- name: 🅉🅄🄶🄲🄰🄿🄸🅃🄰🄻 🅅🄰🄻🄸🄳🄰🅃🄾🅁 00
+  stash: CzugcapJWD8CEHBYHDeFpVcxfzFBCg57ic72y4ryJfXUnk7
+- name: Simply Staking
+  stash: DNDBcYD8zzqAoZEtgNzouVp2sVxsvqzD4UdB5WrAUwjqpL8
+- name: Valtrusama
+  stash: GJFCVN8eVH5x5GJtxscKUt7BX4zoCuDqBKYsPBu1w3Yiq3n
+- name: newton🇫🇷
+  stash: DxErsWqBducKTqxq7dwXKk2kevAzWEWaYJjwtwzqCu2r3F4
+- name: 🥩 Staking4All 🥩
+  stash: GTUi6r2LEsf71zEQDnBvBvKskQcWvK66KRqcRbdmcczaadr
+- name: ◎◉ finalbits
+  stash: DmTzGAndAch8kXngopH69bcQCjYTukbp5Vh9SpJyiGfouwp
+- name: ryabinav1
+  stash: GxxV8DAcHCSzBbspu83AK9UoTYxzSQ6VVfdopjnkXfPtE8d
+- name: 🚀 PolkaStats
+  stash: GTzRQPzkcuynHgkEHhsPBFpKdh4sAacVRsnd8vYfPpTMeEY
+- name: 🚀 PolkaStats/2
+  stash: EPStAMtjApGg8Ap6xKe9gyuinjmetz1MNhzu1cPmLQkWKUA
+- name: 🇨🇳 GBC-冰链科技
+  stash: Fy58miDJmu4jBDR6ma79yBgFeHYESURoZkAAHVDEF8od64D
+- name: Magnetis-Node
+  stash: G543pxmwKNAbW2WepZW7Ss9Wgx9wuDQWcPyhk4eEzpzcibG
+- name: MurterKosirina
+  stash: E84ypSizBDJDxwhtYy4Q4t5RKsy1DppPuU1AP47HVeKhXYt
+- name: maxsam4
+  stash: EFM8UJLpkQ5CcEuH1hMDg7Y8ZsPQx1qzTrtXw412ydetiTV
+- name: Grassfed_Validator_1
+  stash: FAp5gVpwhwdmnJ1Ycet9z6Uva5tnfyCfA3AaY7WGi7u3DU4
+- name: 🐲 DragonStake 🐉
+  stash: DSpbbk6HKKyS78c4KDLSxCetqbwnsemv2iocVXwNe2FAvWC
+- name: 🐲 DragonStake 3 🐉
+  stash: J4XkgJjMP6c1pqneV5KogJvJLM1qReXP9SAMJt33prnDdwB
+- name: KeepNode
+  stash: FDDy3cQa7JXiChYU2xq1B2WUUJBpZpZ51qn2tiN1DqDMEpS
+- name: "⛓  Novy Validator ⛓ "
+  stash: Cs7UFcNBsBV4Y65GsM3bDzpvinMKFQZyt6x9TrhVhc8ps4E
+- name: stakethat
+  stash: DAUrb4UVvwpYxbx6jTVqMquCW2QuafKcFCkgEpnYBcbwaRQ
+- name: clockchain
+  stash: GHiteLMW6qa4s1MU4pUNvxu2vWEpPJwqEpn1SVJCzEBSE7Y
+- name: Cable-X
+  stash: H4Szoc2sxXxBTF1x88pDj9DCYERFvn4oqzQNsV7y89FnD1g
+- name: sebytza05_kusama1
+  stash: DmhYesx1SpC5Edfh9xYNyKH1AbQx2W3HiVDLkPMvXqmiSVB
+- name: TOKENIKA
+  stash: EqbW9Q7nagHPjkYCZMK5qZ8KUcBJg9mp7jUDfmQz4RgP2Gx
+- name: StakeTomato
+  stash: EkpjJUusZu4FZxzC1EyYxoyCxKVGKAd5aEygoF38tqSv3C3
+- name: YT-staking
+  stash: EXS1FwCt9YvUMpqqrG7BUUonhoFDkqnHXPrHfSCATYvQCUc
+- name: KUSAMAPROPHET
+  stash: HKnRS3RryHjzTHGu42u6BtVp2cNuYoRVnrUJGeRAKqagsKY
+- name: Genesis-Node
+  stash: Cm6QfCvV3vud3X6Zfg3yMBEnG6JFNsn6EzcZv6UyqTefkR1
+- name: otter-sv-validator-1
+  stash: FrQ4W8Bo6wgXzkaGHLzVFSsfbWWHvqGGNP1YkRmTPSkN17J
+- name: SNZPool
+  stash: FJ68vDYXj1A7QxHKf6j7qcCdShrU2o5A2sZ3y5w4Rst2d3a
+- name: robonomics_team-01
+  stash: Dcw5vVBmon1PCERJXkYLvvMVmAE8xdqytUwNQLE8p1Hm33J
+- name: GontaValidator_1
+  stash: D3ii6afqaMSFvw8R2NExE1qGQ8EawDsXTduSVm9y51K3Jnb
+- name: thirdwave-network-validator
+  stash: FqFKeVrWbBDVBk8U9VvL8gSFwUm4nj9fEZmtQvmViZzLvnv
+- name: Axia
+  stash: HnR4exC2rBF6MCGVQSH1tdf6UppPvnz8CLNSVCL3VPR4mzQ
+- name: Axia-02
+  stash: CiXHzQXbuCbR4gQgs6BBnBKh61bub61tjgWnHVGEtbBAPPj
+- name: alphavirtual-ne
+  stash: GksmaRC5vew3tP7bEdeRfojsoFYKESjPVhwrZuyUTbMgb8c
+- name: Lightingfury Staking Lab
+  stash: CaSNtNAiKEsQiTcEU9DamgFeji9Hh63QFo91XrmftCTNBva
+- name: Cube3-KSM-Val1-ValidatorA
+  stash: J7Z1bxUB7qhxjqT5js6yAkCZoU1VYNxPvTdg9mtyNNbU845
+- name: 🚀🂱🂡 Fabrice Validator Vinsberg
+  stash: GJYTvSewzH8UntrCfv99KByGggRijqXv8877oh1jsrdCEwg
+- name: sf-ksm-val-00
+  stash: GXaUd6gyCaEoBVzXnkLVGneCF3idnLNtNZs5RHTugb9dCpY
+- name: LunaNova-KSM-Val1-ValidatorA
+  stash: CgpV58FSvuzGmfZXfiAQfkdDMVcFtpMq91ahk2zNYZdjdR9
+- name: King Kusama
+  stash: EDHmmQtv8jGf3PGrsSJC2Bm2YWsF6DWTdKyTtBifPRHQTna
+- name: King Kusama-2
+  stash: GNptL51p7T4WEyL7qaXxpbW2Zzj2RKwimg1er3xZ6nJyoDx
+- name: china_kusama
+  stash: JCeGAwefQ4ePQreZ8hixznNQLgyT5QasCUm6znW7Xkh3u9U
+- name: Sentosa 01
+  stash: HqZG9NMeeHLuHq4v3JmwVkHvGoEGAnrnNfYSvd2VYADNi7Z
+- name: lantau
+  stash: Hnfd2bJ224FQugYsaDvoj4v46HJieMeLe9UQzWtUR7wf5dh
+- name: web3italy
+  stash: Gt6HqWBhdu4Sy1u8ASTbS1qf2Ac5gwdegwr8tWN8saMxPt5
+- name: Blockdaemon_😈_Validator_1
+  stash: Etij9aH36W1NjjWbR7wB5j41CmfpqAx8D4V4HCJhUydSH9Y
+- name: vos
+  stash: Fk3yTFztZdZa4a7yBpisz9ceMyjgYLtZ9CKSCfFNVhoW2ZC
+- name: PerfectStake
+  stash: Dwq62USrcGMwZpJ4uNXR3Q6EMWxuyiwa91gYNN6Ekp9RMN6
+- name: AGx1
+  stash: DVasGX5qBMrCwNM8SnLyFrRpeniAwAsWe2noN6jPdx1jjao
+- name: Tornado-V1
+  stash: HRYTEruAjwDD46kkgaTYpGHQC6uea3AkeLJg4iterSmmjo2
+- name: punkrock-sv-validator-0
+  stash: J75Bj4JkQ1oZ5Y2UCtLBq8FFHDdnrfTQgDGErvk9kyS1wMn
+- name: DrNo-sv-validator-0
+  stash: GcQXL1HgF1ZETZi3Tw3PoXGWeXbDpfsJrrgNgwxde4uoVaB
+- name: NeNa
+  stash: GhNL9Mi5KiL3Ge2jv4jUdncipZNnUFALbzmwg8QqwjxJxcp
+- name: cc001-sv-validator-0
+  stash: GfbeqMNnxHNtictRpqo5Wfdjc8XSoWnFuBpgYB5oCJQbB6b
+- name: Red Dog Staking
+  stash: G9kX2FiFymTEdUL1CgZj3pwjQQoQu6Gid7wzpraUZPHVrxb
+- name: BladeRunner
+  stash: CpYNXnYC1mPPRSXMHvm9EUuhEqHjvj6kCN4kshqMdEpPYSF
+- name: Saxemberg
+  stash: J19LYGghRCe4Ct3VW4Vz1amMoUgogS1sh2FQvPWroKcDdb1
+- name: NotaRaspberryPi
+  stash: JKmFAAo9QbR9w3cfSYxk7zdpNEXaN1XbX4NcMU1okAdpwYx
+- name: tsuki-validator-0
+  stash: D3GpUSsNEnabe5mX8bCkq8Nnc9FVsZgb9nBbTjBq8t52GBg
+- name: Stake Capital | StakeDAO
+  stash: CsHw8cfzbnKdkCuUq24yuaPyJ1E5a55sNPqejJZ4h7CRtEs
+- name: MantraDAO
+  stash: HhZkxUEceUTr4FYNUAZECizfd5QLVKMdfZAL1eY3xPAPmwA
+- name: Melange
+  stash: EAhgtgo4qb6tbh3VwrPEgxne9qkwiqg5SzNHTmbqyoVyHk5
+- name: liberty-sv-validator-0
+  stash: DAexrmQxJ8TKiqpcU2QSn2QiGppGCpWZkJ9p7Nyhm7DW6nB
+- name: Angel
+  stash: J7TBFB4UyLAsyaLa2hXXUc1rJbsTQwCfw15reKEj9NnYsae
+- name: PDP_Validator
+  stash: J7MmkYX4dJzUbNnU9ccemPFbxtsyaSgFVwAGMxx8k9Lf5cu
+- name: DelegaNetworks∞
+  stash: CoqysGbay3t3Q7hXgEmGJJquhYYpo8PqLwvW1WsUwR7KvXm
+- name: Avtomax69
+  stash: D6NRToQpB3LRqWX1K52PmdsdMfh8d31FouPwr58mTSQvgUS
+- name: Blackstone
+  stash: HUhvDrXv3wScT5Xr7jFt7pgVjD2Nojm86sVbne53B4NJH2J
+- name: StakedTech
+  stash: FFRsm3haD645qfSVE1zfywYURWQ6z7YUAD4nad6Zw6qVxDk
+- name: lab-node-cp1q
+  stash: DY3hczPcJjHXScXkKwJZ7vgqTE4bZaCUa56XsAQH8gDzB7x
+- name: HuobiPool
+  stash: DfVSzaqigoaAzmiHpshztww8nJoWNaxX1rfbFniQk9JzfmB
+- name: TX1
+  stash: EtuN1h92gaV961S15PwxN6GHyeonaojALZ8Dddgn1oDPRFt
+- name: node_vw7pkg
+  stash: DayVh23V32nFhvm2WojKx2bYZF1CirRgW2Jti9TXN9zaiH5
+- name: zhe world
+  stash: HZrUY3jizvyrNknE9LSvTTSnkNayxAAW4GBcmRMoJMHZekM
+- name: EasyStake
+  stash: JFPb5PGc8hRdCFx9kkbnuAnUhaxGPMQygM7XjNsuebiZWTp
+- name: rocknode
+  stash: EUviNVqJCsvWaKnSHdqyVQQaJB5zQv6szGKUdPKK1dsBvcn
+- name: SlavaMo
+  stash: D2r9AudNkHHpKfGtS5rpVHkchBoBhRsR6TmNcTuU4yiTp6w
+- name: KOLM
+  stash: FchdrEErnNyhoYCPAbUmw5a9ZzPYbLeACUGC57Qd8ZrwhSG
+- name: ANGL
+  stash: Ef1zUqDDDNME7FwfD2AXKUD5NTixnrmwaF8cfjKwYnsHqCn
+- name: Barachiel
+  stash: HKx2UXV6AhjV6mUGCDJZ2bJRgfmkXCNHXRM1UFDK52ciuDD
+- name: helping-hands 🤝
+  stash: D7oihPA6DAP2qbYtFiHbqejYedwjo6sRPSUC9ZxM8r1T5kY
+- name: kusamaStaker
+  stash: Ga23zKfKTthWAChktd6Pn9xCSAZkCbsAokkzB2mT82TsPYD
+- name: POLKADOT-KOREA
+  stash: CupCfDnJnt5WYFPArdp5GNh3hFbyW7DwTRwhGadHyz3uLxR
+- name: Python
+  stash: F5RKo68FmdnyMZ5BtoPQoing6etJDLmYMFwRSGLaErh8bGh
+- name: OneMoreBlock-01
+  stash: HRYTEruAjwDD46kkgaTYpGHQC6uea3AkeLJg4iterSmmjo2
+- name: Taiwan 001
+  stash: GCNeCFUCEjcJ8XQxJe1QuExpS61MavucrnEAVpcngWBYsP2
+- name: SatanaV
+  stash: GoKrgg1FP1YW8B976sr3jf4QYdHUiqgKeVSFs6Am1FBK2zE
+- name: INSIGHT-0
+  stash: JH7Vy4p3BWUe2VqKQsHiUjWvj5VuF8daqqN25L2oGT6kwt4
+- name: ProofOfTrue
+  stash: EraxW9FCtQtJpnKSKGPxNSrzASoXpHRhctRs8gZv7C7GvHN
+- name: thorbecke
+  stash: FJibatkh7kA8YveBf4ALVvcpwWQRrrbE8mfKwXNNgz8vsop
+- name: Fennel Validator 0
+  stash: Cd2ewfXdQiaUzTBYKSZTzL7hPuB3nzEKMT2y36zJC9QaEG4
+- name: 🚀PromoTeam🚀 | Validator
+  stash: Dm4uKxZJZHJbpZpfnYPiHnbgyHWKMU1s5h6X7kqjfYv1Xkk
+- name: Stakezilla
+  stash: EYLWsnmix2ZYGG1jBedDgUhQQ4cAjpbqH7KvggKYACrBKGr
+- name: canyon-ultimate-1
+  stash: FP6NJ41XMsHb2t7ijRhrtNW9mmNkRp9jMfw5Nwakvz9xNXE
+- name: canyon-ultimate-3
+  stash: HngUT2inDFPBwiey6ZdqhhnmPKHkXayRpWw9rFj55reAqvi
+- name: XinixBB
+  stash: FSXMz8Xz52FgzftVzrAV9BmshiLpmHmFA1TfFE8ePNEmEiE
+- name: coolwater
+  stash: JECeyN45Ycx5t1M1hj2pBbsEZpdeGzDsYA1Wrt2Tdte2wV7
+- name: Cryptonic
+  stash: Ffd5sG7N65LEFr4bXbpwvPnpmezwpfrCVDEozH2jkMs1utk
+- name: Spellcaster
+  stash: F7c6ocWu397zYewAHBxqTwHgXhXDebgYSVjRX9oQM42hkpn
+- name: Hsinchu
+  stash: CjU6xRgu5f9utpaCbYHBWZGxZPrpgUPSSXqSQQG5mkH9LKM
+- name: Ethical Validators 0
+  stash: DbDAmhLFMhSQkZjnmAYjSktubPiSYKs6ubGtUmt5uC4eHzm
+- name: Hypersphere-1
+  stash: Ht3WHUkK4gc9sYBFeLrnsGUQoHvkK2jZtUK8yaajrBYaEci
+- name: blockzilla
+  stash: EJi7cj4VsdyJvEXnyLptuh8pWQ2ycswHTsGui3AbfhStuyT
+- name: Filimonov
+  stash: HNKtoRFLmLsa4mti1LxjE5CmJhcTwq5SBkjDcmySHBZLPir
+- name: Binary Holdings
+  stash: GKEvLVdBEvjHyU77Ai1aPR6KdfVfoAEUQVfUk8uFTQQfvmT
+- name: Binary Holdings 0010
+  stash: HDbZDq8aW1pDbgzQcGK9Mzr8FnrRWHsoiXMSBVnoLwzy7HC
+- name: SEV1/K
+  stash: FFEiPkJNbQ2UtaNKndJxyLzNA5jZFeeJWhe8QUHmv9qg88s
+- name: MND
+  stash: F9pXZUyrkyMjxjJcdRbGR2dJZwCn28dCeRjQDzpcYVszH47
+- name: uc3r
+  stash: GUejeE6LyvMTNA2eswRfse3bJ2G8DswjVgFMwTZKs2tuiod
+- name: curiosity
+  stash: J7F47voe95DEp7SVaqQHMvmasBA87TRjqbF8cephr1mVzhb
+- name: Taichung
+  stash: EMrTktHLYSHAqpVH3f2KMMoLkZPMWjeQAZLpZTJ6KgNcXVr
+- name: Boston-C
+  stash: Dd5c25QmhMqAb62qbvHLPGKWFvG14XisMFWbnrhcGsRSPW7
+- name: 🚀🚀🚀 raketa
+  stash: FemjAwSPBBzaVj97GaVjSFK5wxrrpGMZmj2CCWAaeC3C5XJ
+- name: STAKENODE_POWERNODE
+  stash: CuiwESD49ggEAQ9131Gt948xw11PiWQNXkuR2R2Jt7rYSck
+- name: MurterZlarin
+  stash: D5WxiuCkRfGrFpRjH4uvmjdUQYH6bvHXiUVYp4eRnr7E1DA
+- name: lab-node-ddd1
+  stash: FPwa55diVEYwSuhNXwDACk31u4BTe2kgC255BsibKJwFksc
+- name: DrNo-sv-validator-2
+  stash: HjH4dvyPv2RQMA6XUQPqF37rZZ8seNjPQqYRSm3utdszsin
+- name: Staker_Space-sv-validator-2
+  stash: Dm64aaAUyy5dvYCSmyzz3njGrWrVaki9F6BvUDSYjDDoqR2
+- name: maxsam4_2
+  stash: G7ggTi6GvtXS9qfdWD8rnCXgWS5C93vc2FimcjtMWqpHpXg
+- name: redpenguin
+  stash: G7mWyu1Pom5XreLHUzDEcvFp6WaMuLuo4QKxtDB9yJZnH69
+- name: "OnfinalityV#1"
+  stash: HRuaGanNmkmeQgZPWPXmkZJb944raNS5ni2vhKzhz75zVYP
+- name: Nodeasy
+  stash: CczSz9z41uHpftVviWz91TgjLe3SmbvXfbAc958cjy7F6Qs
+- name: tsuki-validator-1
+  stash: H4DWZHkKgeQtV4J632xcFr3xy34iyK4hLxZctVgF8UsacJN
+- name: Cosmoon
+  stash: CmjHFdR59QAZMuyjDF5Sn4mwTgGbKMH2cErUFuf6UT51UwS
+- name: omaji82
+  stash: DKEqBmUcoQN3FPVPHFtM8wtXqtF4Yrjhg8HyNyVuLwYtcoa
+- name: ZENIT
+  stash: Gf7EHcqRZiXCELr2xYjQXrxAzVcEFh5pEjvQdedKS2avGAj
+- name: SEV2/K
+  stash: GvSbw75mBMQW6rNsVE6KL2NrnN9Vjkej4EKToe1Dya9vGgM
+- name: KeepNode-Carbon
+  stash: GqberYLwXKzYdopusK5szaZSjxPNDYsUQe4zjDZnHMoCWZ8
+- name: Anon-1
+  stash: EkWkbLnosJaPVzVmKMFay2HBQGV5FqGJ75q1x6vdvYoY19Y
+- name: prematurata
+  stash: H72hS8xLmSiSBqbBXHND2KbN8PAoevi52B685cbGki6T9nt
+- name: 🌈 Liebi Technology
+  stash: GLiebiQp5f6G5vNcc7BgRE9T3hrZSYDwP6evERn3hEczdaM
+- name: mobb
+  stash: GgXn3e7LicPtGKchRekFiePDetq8mah4A36d51vqxNW1dn6
+- name: Sachiko
+  stash: EQF693vsen6WxMdoYgf2cypvH4saFJWFzDupoFUT79MffeW
+- name: ondin
+  stash: HWAGAxX2PAzNVg7w3ZyTprH5yvwbVwQ8rbWwuZxtQKbQupW
+- name: ALESSIO-0
+  stash: GaK38GT7LmgCpRSTRdDC2LeiMaV9TJmx8NmQcb9L3cJ3fyX
+- name: luckyve
+  stash: EDNEfKXHd645DPpBhLZjaEwp4sPhj4STjjS4QrMbFU1FqbZ
+- name: Jormungand_Labs
+  stash: G7xzXN3ddsqcsPswNKRhroyptEsh1oakjQ98K7fRZUTUvkr
+- name: stake-machine
+  stash: EchB8XdgqCWS6dbBzhrgtPtrADfyQV9qRAAC9Q7dWbpYZVS
+- name: ANAMIX1000
+  stash: Ekcq8AKv5ggU1qUHbSAVoxmLXuut3oqqwSPWDYRjnHjoXHq
+- name: crazylandd
+  stash: EyMDa4xM5vRgJFtS9NE7e73iA1nFdPVorJ3rZBte3J4bmrQ
+- name: needlecast_labs
+  stash: DVi68PeuKpQAHrCyBnHHhCQoonMXu7ZrL8keRxC7i4Doj9E
+- name: STAKE-R-US-KSM
+  stash: HjR9sWgCxv69teRVpCmTJDaoVjDcWCjLXHZdrVTyaTjz31v
+- name: dakkk
+  stash: HX6qEdgi3eFMasuBwtVFLKKtKVJzHAAK17pLyB7SxkxCASD
+- name: dakkk2
+  stash: G2JyVQGxihdKXDBCC6BYNvsrY9NT4CsxfJ9dF1kjsyX2PJv
+- name: djandre
+  stash: EyZZCbvA9NybsZuR28pFn7fBK9mun8Twgb8tAKuf1taJZie
+- name: HashQuark
+  stash: D8BfryaM5xN62UuKUpLK5zbZEUSBtA76yP9YddQTKXi9pkB
+- name: bolinas-201
+  stash: GCporqtiw7ybKYUqAftjvUAjZnp3x9gfrWsTy1GrvrGwmYT
+- name: BladeRunner2
+  stash: CvXauCCmKbwptHsMcqWzTBFzZ7KEfMwY69AjdLLmr7DfW9j
+- name: Sio34
+  stash: GCzeGccTUJaJSsUHWKaPb5AKiHP8oxm6jJsxDjMbEtNGf2H
+- name: 0Cipriani/K1
+  stash: Fyf8Nh1r3TbBkKm46f63qTsfECxsneh6zPBfKEHqmRQPqta
+- name: ilgio
+  stash: Cdhjt72TSezVDkUzdgyoSwXByfwQJjuXSYcDs5L8snyB8Yx
+- name: Stakin 3
+  stash: DDdwYhRXzGWBvvaqMEQ7acJs21FiB96L7nnJZfq6HxseFxW
+- name: LatentHero
+  stash: EkdTsXR71pJwHjyaevqL33eXoxCvfaFKBfvKy63ydzC57rV
+- name: mobb-2
+  stash: F3NDTWWNPwNCv2A6NioWLr6x2jbSfCYWHit32tBgxc32D2X
+- name: redpenguin2
+  stash: HHdNWih8aLj9LMTb5j67TCuJijmQADCgizBmfB2vVrvcszZ
+- name: IL4R141
+  stash: CmWzMp9is3LgQFWY6qtvkEUft57NXVVbXxKxarHjxPCrTtu
+- name: Polkadotters
+  stash: FVAFUJhJy9tj1X4PaEXX3tDzjaBEVsVunABAdsDMD4ZYmWA
+- name: stake_su
+  stash: D5p4fKuhggjXRxiZ4JuPTCGYpDM6Dp9VRxjsYCeVg7LYv5a
+- name: StakeRock-00
+  stash: FSe8L8hWoRHYETBYM6aCkNy9Cy9RHXYaQJwUYtp9vJhwvpS
+- name: DRAGONLANCE
+  stash: H4EeouHL5LawTqq2itu6auF62hDRX2LEBYk1TxS6QMrn9Hg
+- name: chorusone-0
+  stash: G73WA6emd8c1A6upmqsAEHHYji2ZMw3X5rW8G5BaVkxoUJX
+- name: chorusone-1
+  stash: CzKTTCum6qEZroNpEqBRc174LXTRiNXvHMxRhdi5ZuTB7xi
+- name: 168Node-Aries
+  stash: FoEPEnwUonM5ZDJnk3xJcYbpd5jV79kJHJhYgwwYDYysCCC
+- name: prematurata2
+  stash: HCkdHoqeSVE1wH3RTgZypkEDCnWcPXYd65w6gAHa5YJgjwD
+- name: andreita-validator-0
+  stash: EyTegKZ9DBvMkV6pMbjx2fRk3N2VLNNduuto1PGpYcEqRrX
+- name: 0Yakuza
+  stash: FGLtHUsEDAskXL9A17NsNH5S7kNxggpRsvEsrJ8XLZbUUPC
+- name: SynerWork Inc
+  stash: F7hDMvu33u14QPXbkBzqF4CuuyyruB2xi6D3V7aUbY8KGpr
+- name: MANTRADAO
+  stash: FgLXQHptvj9PEmkJxvTEAeD7SbpD9rZPGPQ3U7WaEqNDMCD
+- name: ilgio2
+  stash: EfeoSg3WEZo5kp3BKfwhwwJkh4GdSaS9MjaeH2nKREDovzw
+- name: Ubik Capital
+  stash: DwJnksma9utUsT31bzf7eUwkDBetZhFzD3bJLE1uBZ5udHN
+- name: KSM-Aeda-1
+  stash: E8QEnkMMyWWrHPTbA7jo547SpkoGcE6yoTXHmrQeXY2sGnT
+- name: HashQuark 02
+  stash: FLdSKZjwaVuLpR2aPRi5csvsWgV6ZA3vZu58qx36oXukM63
+- name: 🏢 MIDL_dev_1
+  stash: GyrcqNwF87LFc4BRxhxakq8GZRVNzhGn3NLfSQhVHQxqYYx
+- name: cryptids_picsou
+  stash: JDEgrmpP97qu8UoTjm2Ra8wJUrXFrunabsnyQ2bZRspf9r6
+- name: Sio34/2
+  stash: DPePyQZA7mR4gaFJuLA5VwUQA6kutXQtah8LmwL4McWCaDE
+- name: Bartalamew
+  stash: GHWU4uLy8noYVgKD1UoxHEQ9NvHg64R4jYsCp1nSq5iDgbJ
+- name: Saxemberg2
+  stash: Cu2z7dVVdzFyDVTjUPm7feV9RFQ8QiG3yLGsVEj5NohFXk7
+- name: AGx2
+  stash: FWxYu7XrMuCvKqyKQntmDsKgAtgYHa2KHiS3tijcLwyjnih
+- name: XUAN_LOW_COMMISSION_NODE
+  stash: HvumdQbk47PXTz57UDrZP5n8rmgf27upC1ooPjtZf9XA2Wk
+- name: oz-stakewithme-sv-validator-0
+  stash: FZr7fhFwhFRgjHc2R3ahkRXgkn7NJjDddZRKH9kGe11rKH7
+- name: WildHorse-01
+  stash: DV9mM2LGLswPEDfnnDov4VWiw9rgGygNvF6iBCwLpozzmBG
+- name: dolphintwo
+  stash: EAJ5LQyAP2kyn4erJLRdNgenZax86Rk71Xqd8GBQHsYbfe9
+- name: TheGuild
+  stash: Gnn9xyFiZYXtKeMfZSSWSdSvxv9go1KCq2kgfyyGcAoZ3pL
+- name: Indigo Two
+  stash: HHWm4YjgJjKv8xrCokUshUKhGfsdbBmjoNV6aGWVgAznZEr
+- name: PureStake_Kusama_03
+  stash: DVw4Zkfva2MPibAsr8vgoha1T2ow8zreoTWGyBDioQBdfMM
+- name: 🎠 Forbole 🇭🇰
+  stash: Hij7jSP2MA3uYYUhXfWdwK428rN7r2NaKn9y85R3iho2MHQ
+- name: tartan-validator-0
+  stash: DzfbhY75AWpqeeQoWhJXZnqr2C9kDjBEkZi4hQbMXTWTkqu
+- name: minimalismaxi1
+  stash: GUk5FnRkhU6bk9vwmp1iahnDESLjBxh17Tee7oTt4Fsv41U
+- name: minimalismaxi2
+  stash: FjNVhKBBbTdgpCeoqoetjJa2bJwiBnnJ4vZicy9U3mWja9v
+- name: Synapticon ॐ The Fool
+  stash: DroGa6vgtDuLFEhPmTUfLMMeTJQH3h8tCzCDTUTQYcVwmuZ
+- name: "SynerWork Inc #2"
+  stash: FMBvL5eqMoCzoR5Rd3p4WKhSbzQGEkpMDBvY1jr431PGa4s
+- name: stakecrypto-validator-0
+  stash: DMjLmWFhQ7dF4jr6FDvNEfCmthTwGGERz56LcEv4qPkokbF
+- name: openbitlab
+  stash: EA9YDzksfSR3RjM5TzKS7bdvEzi7bycXLK15o5g6XTFxFfW
+- name: Good Karma
+  stash: JKbJoCsgUEgjbGmGq7VdSNgSVQt8k43e3WWAYGCpiNP9r6D
+- name: ANAMIX
+  stash: F7Wa1su7NRSr6LWuhPWdXcQALDyzm8Vmev7WtV5jVPtJELs
+- name: AMZ D9 CAPITAL
+  stash: 12eHaKQNKht1aEJqC1A3ZspTV6bRMMYTak9g3uvzGFVN2GTf
+- name: Dionysus-sv-validator-0
+  stash: FWz717J6ATaYSNy2tRHAskEC9SP4uKHNJYC9mvfvimkB8GT
+- name: CoinStudio
+  stash: GCMGu8sjEuEZuMZavo5PLvAhr8fJXAty76jDV1YPquG9erp
+- name: COSMIC-GLOBAL
+  stash: EGLD6GKp267KSemCWMjqUj3XgUG8hU4o5hMcm3HkE7z6EpR
+- name: nodera-validator
+  stash: DMkKL7AZw9TkNw2NaBdocmFRGUG8r8T4kdGGcB13fv2LARy
+- name: ZYON01
+  stash: EKBXaq78vGM7Ny31vNaaR2ageKC2h7DmLjyFZcoBj5M2hai
+- name: apron-01
+  stash: DV6bX2vCyGbBbbMtbWRohE7oMYQ4XxN2bCkcHyCREVWvvjt
+- name: Emmanuel
+  stash: Cc6XtUACk7KZSYVkaNB3LD3T3rAX6dTESypXUGTZ9ENgFqs
+- name: "FIGMENT "
+  stash: Ehj9QgHDku6gewzD87mqeZzYixwqLYEYrEjUiem1Q7sRXMY
+- name: FIGMENT (2)
+  stash: Fhn8iazUm9uNvM9uJ2apCfuK2KTN9qJSZ7x33bJZjjgHcHR
+- name: "OnFinalityV#2"
+  stash: DzmvnHyHyPN2kBHYQpXmrrUvV8KNzDgTPE2Ri2cjDuXhhLt
+- name: "0x0B-Litentry-Kusama-Validator"
+  stash: DaWVnjfH2ACj9g6qRNDHbJMbZQXTVPR7Xguss3HcSHgtWU8
+- name: StakePool247
+  stash: HUEwe3LgEdPW3HkUNAcYYq9EbbaoV3L3gUKbiTsPr4mccMW
+- name: Cat N2
+  stash: GDGpcaydcf6QFHfx772GX2RhreqXMxZRyFWgeGxXsqjzSzN
+- name: KRYNN
+  stash: HRfhckygfiHkqVW19e71R2pXNbR6om7138sLAJENt2Tw1HF
+- name: STEWART-VENTURES
+  stash: Dtf5sKpKrQ3mc9SK1WmRTR3oaKyAS3p27LEeWCLPF6gsDuU
+- name: Any
+  stash: G9eQP5W6mfLg3Sx4EfJ9YCGoxH5HFXmxENy7DA8ExbTmS4a
+- name: Datamine-val-1
+  stash: E2RjTUTsu2ZviCtLuX3Dvobpt4mMpxVGbKfLxR5sfaHfYq5
+- name: Stakin 4
+  stash: GwCVDk8c1QgdJnWLHJn3rfPEYW9sUce3zSUrXaM7kxVWvLw
+- name: "0Yakuza [ 1 ]"
+  stash: GM8b9ZjQ8yGWavLRfL7hcu2MxuDSKCZaQDp1jPhL1zdTGXr
+- name: Everstake 2
+  stash: EMP286w89JTpvfRP2MKSWKgn9YiPw1JVTjmxdmVvcCzvim8
+- name: Cosmoon2
+  stash: H8FCosmkRAgDevcgEppkgcmZLLurh3otcXsyeSZdWDHNJwf
+- name: KUKU-0
+  stash: FaBN1AxtJu21x2cUqvdF5VcVUAfzfqyvJPvwgsdwo3pkdr9
+- name: ShiftNrg Validator 00
+  stash: G93wmGuedgKSYeTjxJvU8reoPTdCNMdQJH1BCXJ1oqAy6s6
+- name: Zetetic Validator
+  stash: GD6MTUJG9Ym7tS6PLF42yreHpqpvFgPcqPwcyRGiMv2TSGR
+- name: CLOUDSTAKING
+  stash: Cugt7PUL7CYNbZRKRPnLnhkrq6sitvuoonBic1wsZYaKoWW
+- name: moose-val-0
+  stash: E3NhPSjSgjJZ99Hq5CQEqAC82KonvUNLKbcK7hxnF6pGkJ3
+- name: metapyr
+  stash: Dr9Yv9VdCxETbj9mvrr64gqWPJQd7m4sb1dckH6DMLRQgUC
+- name: EMMANUEL
+  stash: FPYeJ7sFitnWbncKikQZCfN6p6znTpkCHo3ihr8eyScGpgX
+- name: Stakin 4
+  stash: GwCVDk8c1QgdJnWLHJn3rfPEYW9sUce3zSUrXaM7kxVWvLw
+- name: hirish
+  stash: Eg19soJDW6GM387LPtrszyeQ93nuUZiGdUsbJbKqekKAPab
+- name: PolkaStakersDotcom
+  stash: J4GLk8QZktKt7wBN2KHzgkexPXHsVjAr2VHRXeSuPjLvPsi
+- name: ShiftNrg Validator 01
+  stash: GAToc2z84QsNgTG1KX7DuZAyxWihAv7WPc5mbebzrvVtH1m
+- name: Mile
+  stash: HMaTJbeYonb2SoT7ek1sjrtkkKaor7j3yy2VUbj6FDokPXr
+- name: Simply Staking 2
+  stash: GLJLgrKhPDzSvNCNjQ184si3Fvu3bzSJBzewkzEZRVLV2oe
+- name: EARNSTASH
+  stash: DB7TzV6pkybdCQPTTKYv2HZshTeYkVcjY8pckMXNGYYvnox
+- name: TigerPro Capital
+  stash: HyZ3pc1LdxVkNSt2TYKc8vxp9PWexhz7ayL1WBUkfxxUJQb
+- name: Wetez
+  stash: GcgPeEtLketwNDVVdV2jEnaTU5RMdGQdpYqVshssBWy1txZ
+- name: birb-01
+  stash: GZvxvwKGaZyq21BHnrUpdQkpcF4jrCsi23d3c6dvsmp6BF8
+- name: Novy-Validator-2
+  stash: DmoWRpG58NdYQqeRyPE9VpZ4GLh9wSM12LBr6gWjdab6twc
+- name: interkusama
+  stash: HjKwv4yPQaBee3qnJohxim4PVsrqWnt36xRkE7BK72g2iJD
+- name: "Eat Pray Validate 1 🍴🙏🖥 "
+  stash: EPV1c7jjoCFPkWqTzTkbuT3oGRM8HkjbTVHeuvsyiAbB2aZ
+- name: Eat Pray Validate 2 🍴🙏🖥
+  stash: EPV2HxrBnVB2n4p7Mb38A3BrzCyREWbzQ75cC9rkZhRYcRE
+- name: BlockAegis
+  stash: HcdBFbGDMFzs5MuYQxFQpTBivHgH1UyFKqQDip9YgmqngKH
+- name: Swiss Bond
+  stash: EoYkgoLQn1GZrJLmqVMd6GhSJYWtYAtzg3fEcWH6nXjscqC
+- name: soramitsu-validator-3
+  stash: HXPQBH5oLAZcarqtmchGJNzjbfQS8WFM5F1A3jPvit387pH
+- name: soramitsu-validator-4
+  stash: HkWiVG6ZSmgEgiS74A8YEHwPm47PeRM3sAHxapKrm3DZXEb
+- name: TigerPro Capital/2
+  stash: HH9NxZ1PYA6Yjy3m599X4UcgLYVfjoMmyzFBfdfGZyoJqoF
+- name: ZYON02
+  stash: Fyg1mhumofTZ5PbYQuGstEiKR6iaFfBdWefjsPtroX3sHvr
+- name: Allnodes
+  stash: DrcpVMV5dExRfYh1vcSgZLBfzW7cKjU18ZktNDqesNEs31B
+- name: sweetkusama
+  stash: DroSyaiS2xVkiDogTxstJKRL1PCX3YV5odMGuRnNQW3xkHh
+- name: Mile-Bravo
+  stash: HMATevKkCxh3Z4gDJuqeB19ckmoxXN7RH7dfSPq1HhciX77
+- name: CocoStake
+  stash: D2zti6mwUaTRHLc63RS6hicsqMQMfQFY6aji4Nkjmi71hkH
+- name: blockscape
+  stash: HeR1UoT4qoCgKuLFm4BzXSkFVkNuhZbFd23pNrpaoFT7GLv
+- name: StakePineapple
+  stash: JBzYyRW7q2PEmZeKBa4kNjWgznweQe8RgvhAGZ41uNdsgzC
+- name: Bluefin_Tuna
+  stash: CbaNLeJQ8e8aCJMTLa9euDKuTDmnT5oPmGFt4AmuvXmYFGN
+- name: EARNSTASH-2
+  stash: HcVwxgZZ7wEfvG12r8s95fW2q6KqtPnQnt4UM9cBoD3t9wM
+- name: phongletrung-sv-validator-0
+  stash: FiL3XNxVpx5Cgnh4WPpPWms5Ed9tGqA44YEtHVDyPacHVGt
+- name: michaelstephan-sv-validator-0
+  stash: GkS2m7UK6RSUkFiCHYPRtp8GCKdPtrBwP1wj7448gWoiut8
+- name: asaautomation-sv-validator-0
+  stash: FFiPtk8eHdHhPQk4cf8wvWdmP3LYY7NLYSDjV2JidP7cJxT
+- name: 🏢 MIDL_dev_2
+  stash: Fs72xecWY6SRwKNH2voodiSsdVKeath4kofHEGsZGLibSxh
+- name: mkraemercs-sv-validator-0
+  stash: ESK4KKWsr1g6sbi4ctbaNDxa2dzkq2P4bxL7uBJupmjDovR
+- name: P0lkaTone ॐ KSM0
+  stash: FteCpTdLgcH1ThQPGtfe2afEGejTeBUJ2zXi2mNAL9vjh51
+- name: pieceofsteak
+  stash: GCNSLjd1874griowz1328Ljx6WYm89bJNRtKriVpQonj9E6
+- name: cionsystem-sv-validator-0
+  stash: GhHJUE4G3WGCVRZv7AKkgzJM7UDETPRwp9ffbe9QkkMGfv5
+- name: Crypto-One k1
+  stash: GJPpzV1sGW6VroHoDTPaKNh3N1NTiRaKP54oQ9oFNpYwyB2
+- name: ATACAMA
+  stash: D61TLx2ucp9NSRGCWHaUTf1sB5Vbr2ehP1G5xGLDDByvzjL
+- name: keith-i-sv-validator-0
+  stash: Hn5zQPVHD2p5gni6hokFZm4v4WW4bPN9HRzNwcJNP8mZxxz
+- name: ⛰  Helikon Labs 001  ⛰
+  stash: GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg
+- name: 🧊 Iceberg Nodes 🧊 | V1
+  stash: Eices1KaGTYqiazfjJpwyjnz5UzqTxULeYqnmeJNz49gs19
+- name: Allnodes2
+  stash: HgNrFcEToXx64kDtmB6zh375zDrEUE6vLQJgQdmxGje14TA
+- name: virtual-hive
+  stash: EhrrCw7cGiZt9PHFspL8tFJNMN23bk9zVcqM5MiZBCg39r8
+- name: "KUS-KUS [MAIN]"
+  stash: GAFBQ24KVtEpqG7FtVimyFxFLTEHj6h5izR6vPG9tjP6XrJ
+- name: STAKE LINK
+  stash: GetZUSLFAaKorkQU8R67mA3mC15EpLRvk8199AB5DLbnb2E
+- name: hypnos
+  stash: FLiH2NCS22iR3CytTaqM3kyezKZEkDTUbFqTsXLvMy6yu4s
+- name: 8pi-validator-0
+  stash: D8pieja63jDQXjcb2eRiM7AbVTLjJmi2wmrFLnDNZNrQfc5
+- name: DISC-SOFT-01
+  stash: Em92MnW3EtTYZU4dPaEZFbcH7RC71YfdHYeJvoFB4ZPfa4P
+- name: DISC-SOFT-02
+  stash: EwE45Lz3KVSNsjipneLm56cS2XAwbVPSKuLA9YkbZbzo7gm
+- name: GoOpen
+  stash: JJiV1xrj1814BVDDG2pFCsgzdbR7K29VcyXQGXEUhn7LWhK
+- name: PRIVI-sv-validator-0
+  stash: GhFnfJR6j6LN2YdTxUH9osnrSqQ1jryKH5eQ8FPweCsks9f
+- name: dsrv
+  stash: Ftyv7Tr52RHH93nFC9febkBppynYmmcQNwBKxRSKTYdwLuQ
+- name: Test_Lab
+  stash: DqwB3sKVYNJNeiE1Rx3cdWhKdmr4jC4YdjST9xUHBCbZ4CH
+- name: "==ELDORADO-Validator=="
+  stash: Cp2kxaQCVbPCfEc1T2tFxvMWvaUDuuKqSfhxnkDjuLk3bxy
+- name: bLdn0d3
+  stash: Hf8C626KBAjitMV7w8AhQWDCiPgUU47htEwbomq5mDMKeyL
+- name: KryptoVlada KSM
+  stash: EHtkRBDz5b3BsyV5URnHsMnqFyxMoUHE7RQBHNhmGY2hKPJ
+- name: Wetez
+  stash: GcgPeEtLketwNDVVdV2jEnaTU5RMdGQdpYqVshssBWy1txZ
+- name: Northwoods-A
+  stash: HZU7Hkai2LZkP6BRCUEWiGSkhaNJoaPgroYEKtKkMHwTTY6
+- name: Northwoods-B
+  stash: DdenGrPKBYbExerMSNw2WYfq7kR6W8TKKvJw7SSmRJU7Qpn
+- name: green_stake_1
+  stash: DUosLRkGRU7WPKNjb83W6t1sMRDwxXFdUgERGebwQobCxKB
+- name: π 3.141592653589
+  stash: Cg69aFMQVSpmLbpPHXcLb8dBszhTBaxNsbvqHyWDwRw2aMc
+- name: Bricksz
+  stash: GcYjMe8hksoYUB6sdWBbgWGJL22pZFg1FmDBALqbRSds2fZ
+- name: audit-one
+  stash: JLJWkHMzAedfCeJSGXVcwEdTbUdbDRDvphRLHeqhmPVJoGy
+- name: validchains-validator
+  stash: FcisXpcVqJ2PGUNhikMUwciEWncuei5PkNgMc9qmsxqQH7o
+- name: virtual-hive
+  stash: JHEo3pB2dBhdHB17AFTtbaeXkeyeE1u87QGZiv2X23SWTr3
+- name: moose-val-1
+  stash: J3f7ULfjVbbBYvZtMvaEDiUC8odXjt2A2hGShshBFCKHazY
+- name: Mitch-Wariner
+  stash: FS8nKS5ReuaA999xUKTEzDDCA8BXyyrxD73KKyqwbRRt2Hf
+- name: 8pi-validator-1
+  stash: D8piCuemtrBkDD2q92PyezDUnHSQeJwnkMqy54Qkegcg7nb
+- name: Hancock
+  stash: Ep3MWMspX58mARQta8jBfXqD4vsn6KnUYyqgQswG15j9vg1
+- name: Doxxx-KUS-validator
+  stash: H3DL157HL7DkvV2kXocanmKaGXNyQphUDVW33Fnfk8KNhsv
+- name: KusamaSLO
+  stash: Cd2Hbar7aTHJehQi1WaxzCpqm7rWRzx53oJYetzFr6D9H9W
+- name: KusamaSLO-1
+  stash: HpzuhNetdTcqGsgSihfVSvjMcqJQto2ZY94hc8QS76215T4
+- name: Ryu_Capital_1
+  stash: GJLpAf8RSZbj8GrMNa2zzCBw84rKkKEW9HGKw2usub7vZ5M
+- name: Gaia Staking V1
+  stash: FhumdZoou6XFoLVrJjbKvhxqBGRrtjLZuPhkYFd72cMnAXW
+- name: KusamaLlama
+  stash: FzTUehLmyanEjDNnbFGkU8b1XXjjxaDWfV6nYVSTyaoUMPB
+- name: legos
+  stash: EFysEttiUwYAYu3CAgqmySCmRQ43ucBvgi4Dm1Sfgm4DqG7
+- name: Nic0
+  stash: CaVLqgMmajk7ySYjo4SPqauXwsZu8Y5tP9vVDvJvcecbp3n
+- name: CertHum-MaxStake-sv-validator-0
+  stash: EpeeGt1x3kju8TZmfcaHTkBwTn7eyq4Sxy8Z3dPU88chMcN
+- name: Wagyu Stake
+  stash: GcEQdxFSbY79W8fruZEWQdRmEndzDGydNPh1kvrKQgc2sXQ
