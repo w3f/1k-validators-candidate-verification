@@ -29,15 +29,15 @@ impl AsRef<str> for Network {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TelemetryWatcherConfig {
-    enabled: bool,
     uri: String,
     database: String,
     telemetry_host: String,
     network: Network,
 }
 
-async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
+pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
     info!("Opening MongoDB client");
     let client = MongoClient::new(&config.uri, &config.database)
         .await?
@@ -122,6 +122,7 @@ impl Candidate {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequirementsProceedingConfig {
     enabled: bool,
     db_uri: String,
@@ -132,7 +133,7 @@ pub struct RequirementsProceedingConfig {
     candidates: Vec<Candidate>,
 }
 
-async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Result<()> {
+pub async fn run_requirements_proceeding(config: RequirementsProceedingConfig) -> Result<()> {
     info!("Opening MongoDB client");
     let store = MongoClient::new(&config.db_uri, &config.db_name).await?;
 

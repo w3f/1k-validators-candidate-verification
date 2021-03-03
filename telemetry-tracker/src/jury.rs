@@ -38,6 +38,7 @@ pub enum Judgement {
     Fault(Context),
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequirementsConfig<Balance> {
     pub commission: u32,
     pub bonded_amount: Balance,

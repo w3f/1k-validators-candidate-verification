@@ -11,10 +11,6 @@ name = "lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "candidate-validator"
-path = "src/bin/candidate_validator.rs"
-
-[[bin]]
 name = "telemetry-tracker"
 path = "src/bin/telemetry_tracker.rs"
 

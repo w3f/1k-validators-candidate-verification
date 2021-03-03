@@ -17,7 +17,20 @@ mod judge;
 mod jury;
 mod system;
 
-type Result<T> = std::result::Result<T, anyhow::Error>;
+// Re-exports
+pub use system::{
+    run_requirements_proceeding, run_telemetry_watcher, RequirementsProceedingConfig,
+    TelemetryWatcherConfig,
+};
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ConfigWrapper<T> {
+    pub enabled: bool,
+    #[serde(flatten)]
+    pub config: Option<T>,
+}
+
+pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
 trait ToBson {
     fn to_bson(&self) -> Result<Bson>;
