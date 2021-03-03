@@ -17,13 +17,12 @@ struct RootConfig {
     db_uri: String,
     db_name: String,
     telemetry_watcher: ConfigWrapper<TelemetryTrackerConfig>,
-    candidate_verifier: ConfigWrapper<CandidateVerifierConfig>,
+    candidate_verifier: ConfigWrapper<Vec<CandidateVerifierNetworkConfig>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConfigWrapper<T> {
     pub enabled: bool,
-    #[serde(flatten)]
     pub config: Option<T>,
 }
 
@@ -31,11 +30,6 @@ pub struct ConfigWrapper<T> {
 struct TelemetryTrackerConfig {
     telemetry_host: String,
     networks: Vec<Network>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct CandidateVerifierConfig {
-    networks: Vec<CandidateVerifierNetworkConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -59,6 +53,8 @@ async fn main() -> Result<()> {
         .init();
 
     let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
+
+    println!(">> {:?}", root_config);
 
     // Process telemetry tracker configuration.
     let tracker = root_config.telemetry_watcher;
@@ -86,7 +82,7 @@ async fn main() -> Result<()> {
             "No configuration is provided for (enabled) candidate verifier"
         ))?;
 
-        for network_config in verifier_config.networks {
+        for network_config in verifier_config {
             let network = network_config.network;
             let specialized = RequirementsProceedingConfig {
                 db_uri: root_config.db_uri.clone(),

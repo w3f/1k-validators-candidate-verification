@@ -2,4 +2,4 @@ FROM rust
 
 COPY . .
 
-RUN cargo run --bin reward-claim-generator
+RUN cargo run --bin candidate-verifier
