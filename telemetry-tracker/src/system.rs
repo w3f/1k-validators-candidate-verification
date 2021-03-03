@@ -126,12 +126,15 @@ impl Candidate {
 pub struct RequirementsProceedingConfig {
     pub db_uri: String,
     pub db_name: String,
-    pub network: Network,
     pub rpc_hostname: String,
     pub requirements_config: RequirementsConfig<u128>,
+    pub network: Network,
 }
 
-pub async fn run_requirements_proceeding(config: RequirementsProceedingConfig, candidates: Vec<Candidate>) -> Result<()> {
+pub async fn run_requirements_proceeding(
+    config: RequirementsProceedingConfig,
+    candidates: Vec<Candidate>,
+) -> Result<()> {
     info!("Opening MongoDB client");
     let store = MongoClient::new(&config.db_uri, &config.db_name).await?;
 

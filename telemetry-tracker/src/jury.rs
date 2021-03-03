@@ -260,7 +260,11 @@ where
         for id in node_ids {
             let is_ok = self
                 .telemetry_store
-                .verify_node_uptime(id, self.config.node_activity_timespan, self.config.max_node_activity_diff)
+                .verify_node_uptime(
+                    id,
+                    self.config.node_activity_timespan,
+                    self.config.max_node_activity_diff,
+                )
                 .await?;
             if is_ok {
                 is_compliant = true;

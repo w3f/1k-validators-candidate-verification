@@ -6,8 +6,8 @@ extern crate serde;
 extern crate anyhow;
 
 use lib::{
-    run_requirements_proceeding, run_telemetry_watcher,
-    RequirementsProceedingConfig, Result, TelemetryWatcherConfig, Network
+    run_requirements_proceeding, run_telemetry_watcher, Network, RequirementsConfig,
+    RequirementsProceedingConfig, Result, TelemetryWatcherConfig,
 };
 use std::fs::read_to_string;
 use tokio::time::{self, Duration};
@@ -42,7 +42,7 @@ struct CandidateVerifierConfig {
 struct CandidateVerifierNetworkConfig {
     network: Network,
     rpc_hostname: String,
-    requirements_config: RequirementsProceedingConfig,
+    requirements_config: RequirementsConfig<u128>,
 }
 
 #[tokio::main]
@@ -72,21 +72,31 @@ async fn main() -> Result<()> {
         }
     }
 
-    /*
     // Process candidate verifier configuration.
-    let verifier = config.candidate_verifier;
+    let verifier = root_config.candidate_verifier;
     if verifier.enabled {
-        let config = verifier.config.ok_or(anyhow!(
+        let verifier_config = verifier.config.ok_or(anyhow!(
             "No configuration is provided for (enableD) candidate verifier"
         ))?;
 
-        tokio::spawn(async move {
-            if let Err(err) = run_requirements_proceeding(config).await {
-                error!("Exiting candidate verifier {:?}", err);
-            }
-        });
+        for network_config in verifier_config.networks {
+            let specialized = RequirementsProceedingConfig {
+                db_uri: root_config.db_url.clone(),
+                db_name: root_config.db_name.clone(),
+                rpc_hostname: network_config.rpc_hostname,
+                requirements_config: network_config.requirements_config,
+                network: network_config.network,
+            };
+
+            tokio::spawn(async move {
+                /*
+                if let Err(err) = run_requirements_proceeding(specialized).await {
+                    error!("Exiting candidate verifier {:?}", err);
+                }
+                */
+            });
+        }
     }
-    */
 
     // Hold it here forever.
     loop {

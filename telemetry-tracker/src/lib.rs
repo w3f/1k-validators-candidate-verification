@@ -18,9 +18,10 @@ mod jury;
 mod system;
 
 // Re-exports
+pub use jury::RequirementsConfig;
 pub use system::{
-    run_requirements_proceeding, run_telemetry_watcher, RequirementsProceedingConfig,
-    TelemetryWatcherConfig, Network,
+    run_requirements_proceeding, run_telemetry_watcher, Network, RequirementsProceedingConfig,
+    TelemetryWatcherConfig,
 };
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;

@@ -90,12 +90,20 @@ impl MongoClient {
     }
     pub fn get_candidate_state_store(&self, network: &Network) -> CandidateStateStore {
         CandidateStateStore {
-            coll: self.db.collection(&format!("{}_{}", CANDIDATE_STATE_STORE_COLLECTION, network.as_ref())),
+            coll: self.db.collection(&format!(
+                "{}_{}",
+                CANDIDATE_STATE_STORE_COLLECTION,
+                network.as_ref()
+            )),
         }
     }
     pub fn get_telemetry_event_store(&self, network: &Network) -> TelemetryEventStore {
         TelemetryEventStore {
-            coll: self.db.collection(&format!("{}_{}", TELEMETRY_EVENT_STORE_COLLECTION, network.as_ref())),
+            coll: self.db.collection(&format!(
+                "{}_{}",
+                TELEMETRY_EVENT_STORE_COLLECTION,
+                network.as_ref()
+            )),
         }
     }
 }
