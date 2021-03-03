@@ -589,10 +589,13 @@ mod tests {
     #[tokio::test]
     async fn verify_node_uptime_valid() {
         // Create client.
-        let client = MongoClient::new("mongodb://localhost:27017/", "test_verify_node_uptime_valid")
-            .await
-            .unwrap()
-            .get_telemetry_event_store();
+        let client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_verify_node_uptime_valid",
+        )
+        .await
+        .unwrap()
+        .get_telemetry_event_store();
 
         client.drop().await;
 
@@ -627,10 +630,13 @@ mod tests {
     #[tokio::test]
     async fn verify_node_uptime_invalid() {
         // Create client.
-        let client = MongoClient::new("mongodb://localhost:27017/", "test_verify_node_uptime_invalid")
-            .await
-            .unwrap()
-            .get_telemetry_event_store();
+        let client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_verify_node_uptime_invalid",
+        )
+        .await
+        .unwrap()
+        .get_telemetry_event_store();
 
         client.drop().await;
 

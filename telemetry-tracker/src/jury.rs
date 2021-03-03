@@ -1,7 +1,10 @@
-use crate::database::{CandidateState, TelemetryEventStore};
 use crate::judge::NetworkAccount;
 use crate::system::Candidate;
 use crate::Result;
+use crate::{
+    database::{CandidateState, TelemetryEventStore},
+    events::NodeId,
+};
 use sp_arithmetic::Perbill;
 use std::convert::TryFrom;
 use substrate_subxt::identity::{Data, Judgement as RegistrarJudgement, Registration};
@@ -22,6 +25,8 @@ pub enum Context {
     StashControllerDeviation,
     StakingLedger,
     BondedAmount,
+    NodeNameFound,
+    RequiredNodeUptime,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -36,6 +41,8 @@ pub enum Judgement {
 pub struct RequirementsConfig<Balance> {
     pub commission: u32,
     pub bonded_amount: Balance,
+    pub last: u64,
+    pub max_diff: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -235,5 +242,38 @@ where
         } else {
             self.judgments.push(Judgement::Fault(Context::BondedAmount));
         }
+    }
+    pub async fn judge_node_uptime(&mut self, node_ids: &[NodeId]) -> Result<()> {
+        if !node_ids.is_empty() {
+            self.judgments.push(Judgement::Ok(Context::NodeNameFound))
+        } else {
+            self.judgments
+                .push(Judgement::Fault(Context::NodeNameFound))
+        }
+
+        let mut is_compliant = false;
+
+        // Check is node Id. As soon as one of those has the required uptime,
+        // the candidate is marked as compliant.
+        for id in node_ids {
+            let is_ok = self
+                .telemetry_store
+                .verify_node_uptime(id, self.config.last, self.config.max_diff)
+                .await?;
+            if is_ok {
+                is_compliant = true;
+                break;
+            }
+        }
+
+        if is_compliant {
+            self.judgments
+                .push(Judgement::Ok(Context::RequiredNodeUptime));
+        } else {
+            self.judgments
+                .push(Judgement::Fault(Context::RequiredNodeUptime));
+        }
+
+        Ok(())
     }
 }

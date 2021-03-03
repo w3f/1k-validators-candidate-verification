@@ -113,7 +113,12 @@ where
             jury.judge_bonded_amount(None);
         }
 
-
+        // Requirement: Node uptime.
+        let node_ids = self
+            .telemetry_store
+            .get_node_ids_by_name(state.candidate.node_name())
+            .await?;
+        jury.judge_node_uptime(&node_ids).await?;
 
         Ok(jury.generate_report())
     }

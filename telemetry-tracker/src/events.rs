@@ -42,6 +42,12 @@ pub struct UploadSpeed(Vec<BytesPerSecond>);
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
 pub struct DownloadSpeed(Vec<BytesPerSecond>);
 
+impl NodeName {
+    pub fn new(name: String) -> Self {
+        NodeName(name)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content")]
 #[serde(rename_all = "snake_case")]

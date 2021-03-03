@@ -1,4 +1,4 @@
-use crate::events::TelemetryEvent;
+use crate::events::{NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{
     database::{CandidateState, MongoClient},
@@ -97,12 +97,12 @@ async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
 #[serde(rename_all = "snake_case")]
 pub struct Candidate {
     stash: String,
-    node_name: String,
+    node_name: NodeName,
     network: Network,
 }
 
 impl Candidate {
-    pub fn new(stash: String, node_name: String, network: Network) -> Self {
+    pub fn new(stash: String, node_name: NodeName, network: Network) -> Self {
         Candidate {
             stash: stash,
             node_name: node_name,
@@ -111,6 +111,9 @@ impl Candidate {
     }
     pub fn stash_str(&self) -> &str {
         self.stash.as_str()
+    }
+    pub fn node_name(&self) -> &NodeName {
+        &self.node_name
     }
     pub fn to_account_id<T: Ss58Codec>(&self) -> Result<T> {
         Ok(T::from_ss58check(&self.stash).map_err(|err| {
@@ -232,7 +235,7 @@ async fn requirements_proceeding() {
         },
         candidates: vec![Candidate::new(
             "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
-            "Alice".to_string(),
+            NodeName::new("Alice".to_string()),
             Network::Kusama,
         )],
     };
