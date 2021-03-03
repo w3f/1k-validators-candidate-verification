@@ -1,4 +1,6 @@
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate serde;
 #[macro_use]
 extern crate anyhow;
@@ -8,11 +10,12 @@ use lib::{
     RequirementsProceedingConfig, Result, TelemetryWatcherConfig,
 };
 use std::fs::read_to_string;
+use tokio::time::{self, Duration};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct Config {
     telemetry_tracker: ConfigWrapper<TelemetryWatcherConfig>,
-    candidate_validator: ConfigWrapper<RequirementsProceedingConfig>,
+    candidate_verifier: ConfigWrapper<RequirementsProceedingConfig>,
 }
 
 #[tokio::main]
@@ -22,20 +25,33 @@ async fn main() -> Result<()> {
     // Process telemetry tracker configuration.
     let tracker = config.telemetry_tracker;
     if tracker.enabled {
-        run_telemetry_watcher(tracker.config.ok_or(anyhow!(
+        let config = tracker.config.ok_or(anyhow!(
             "No configuration is provided for (enabled) telemetry tracker"
-        ))?)
-        .await?;
+        ))?;
+
+        tokio::spawn(async move {
+            if let Err(err) = run_telemetry_watcher(config).await {
+                error!("Exiting telemetry watcher: {:?}", err);
+            }
+        });
     }
 
-    // Process candidate validator configuration.
-    let validator = config.candidate_validator;
-    if validator.enabled {
-        run_requirements_proceeding(validator.config.ok_or(anyhow!(
-            "No configuration is provided for (enableD) candidate validator"
-        ))?)
-        .await?;
+    // Process candidate verifier configuration.
+    let verifier = config.candidate_verifier;
+    if verifier.enabled {
+        let config = verifier.config.ok_or(anyhow!(
+            "No configuration is provided for (enableD) candidate verifier"
+        ))?;
+
+        tokio::spawn(async move {
+            if let Err(err) = run_requirements_proceeding(config).await {
+                error!("Exiting candidate verifier {:?}", err);
+            }
+        });
     }
 
-    Ok(())
+    // Hold it here forever.
+    loop {
+        time::sleep(Duration::from_secs(60)).await;
+    }
 }
