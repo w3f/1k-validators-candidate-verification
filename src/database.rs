@@ -388,7 +388,8 @@ impl TelemetryEventStore {
     async fn drop(&self) {
         self.coll.drop(None).await.unwrap();
     }
-    // TODO: Is this necessary?
+    // MongoDb cannot `$setOnInsert` followed by field modifications without
+    // throwing conflicts...
     async fn insert_node_info(&self, node_id: &NodeId, node_name: Option<&NodeName>) -> Result<()> {
         self.coll
             .update_one(
