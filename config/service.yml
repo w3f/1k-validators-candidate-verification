@@ -1,28 +1,11 @@
 db_uri: "mongodb://localhost:27017/"
 db_name: "candidate_verifier"
 telemetry_watcher:
-  enabled: false
+  enabled: true
   config:
     telemetry_host: "wss://telemetry-backend.w3f.community/feed"
     networks:
       - "polkadot"
       - "kusama"
 candidate_verifier:
-  enabled: true
-  config:
-    - network: "polkadot"
-      rpc_hostname: "wss://rpc.polkadot.io"
-      candidate_file: "config/polkadot_candidates.yml"
-      requirements_config:
-        max_commission: 10
-        min_bonded_amount: 10000
-        node_activity_timespan: 10
-        max_node_activity_diff: 10
-    - network: "kusama"
-      rpc_hostname: "wss://kusama-rpc.polkadot.io"
-      candidate_file: "config/kusama_candidates.yml"
-      requirements_config:
-        max_commission: 10
-        min_bonded_amount: 10000
-        node_activity_timespan: 10
-        max_node_activity_diff: 10
+  enabled: false
