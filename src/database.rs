@@ -8,7 +8,7 @@ use bson::{from_document, Document};
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -221,8 +221,6 @@ impl CandidateStateStore {
     }
 }
 
-use std::collections::HashSet;
-
 pub struct TimetableStore {
     coll: Collection,
     whitelist: HashSet<NodeName>,
@@ -234,7 +232,7 @@ impl TimetableStore {
 
         match event {
             // `AddedNode` events need special treatment since only those
-            // specify a node name and can potentially change the node id.
+            // specify a node name.
             TelemetryEvent::AddedNode(event) => {
                 let node_id = event.node_id;
                 let node_name = event.details.name;
@@ -284,7 +282,12 @@ impl TimetableStore {
 
         Ok(())
     }
-    pub async fn detect_downtime(&self, threshold: i64, now: Option<LogTimestamp>) -> Result<()> {
+    pub async fn detect_downtime(
+        &self,
+        candidate: Candidate,
+        threshold: i64,
+        now: Option<LogTimestamp>,
+    ) -> Result<bool> {
         let now = now.unwrap_or(LogTimestamp::new());
         let threshold = now.as_secs() - threshold;
 
@@ -292,6 +295,7 @@ impl TimetableStore {
             .coll
             .find(
                 doc! {
+                    "table_id": candidate.node_name().to_bson()?,
                     "last_event": {
                         "$lt": threshold.to_bson()?,
                     }
@@ -301,13 +305,13 @@ impl TimetableStore {
             .await?;
 
         // Take care of duplicate entries.
-        let mut tracked: HashMap<NodeName, Timetable> = HashMap::new();
+        let mut selected: Option<Timetable> = None;
         while let Some(doc) = timetables.next().await {
             let timetable: Timetable = from_document(doc?)?;
             let node_name = &timetable.table_id.node_name;
 
             // Check if the node name already exists.
-            if let Some(curr_table) = tracked.get(node_name) {
+            if let Some(curr_table) = selected.as_ref() {
                 // Overwrite the the timetable based on the latest event timestamp.
                 if curr_table.last_event < timetable.last_event {
                     // Prepare info for deletion.
@@ -315,7 +319,7 @@ impl TimetableStore {
                     let del_node_name = curr_table.table_id.node_name.clone();
 
                     // Update timetable.
-                    tracked.insert(node_name.clone(), timetable.clone());
+                    selected = Some(timetable);
 
                     // Delete outdated timetable.
                     self.coll
@@ -329,38 +333,42 @@ impl TimetableStore {
                         .await?;
                 }
             } else {
-                tracked.insert(node_name.clone(), timetable);
+                selected = Some(timetable);
             }
         }
 
-        // Update offline counters and checkpoints.
-        for (node_id, timetable) in &tracked {
-            let update = if let Some(checkpoint) = timetable.last_offline_checkpoint {
-                doc! {
-                    "offline_counter": (now.as_secs() - checkpoint.as_secs()).to_bson()?,
-                    "last_offline_checkpoint": now.to_bson()?,
-                }
-            } else {
-                doc! {
-                    "offline_counter": (now.as_secs() - timetable.last_event.as_secs()).to_bson()?,
-                    "last_offline_checkpoint": now.to_bson()?,
-                    "start_period": now.to_bson()?,
-                }
-            };
-
-            self.coll
-                .update_one(
-                    doc! {
-                        "table_id.node_id": node_id.to_bson()?,
-                        "table_id.node_name": timetable.table_id.node_name.to_bson()?,
-                    },
-                    update,
-                    None,
-                )
-                .await?;
+        // If no timetable was selected it means that there was no downtime.
+        if selected.is_none() {
+            return Ok(false);
         }
 
-        Ok(())
+        // Update offline counters and checkpoints.
+        let timetable = selected.unwrap();
+        let update = if let Some(checkpoint) = timetable.last_offline_checkpoint {
+            doc! {
+                "offline_counter": (now.as_secs() - checkpoint.as_secs()).to_bson()?,
+                "last_offline_checkpoint": now.to_bson()?,
+            }
+        } else {
+            doc! {
+                "offline_counter": (now.as_secs() - timetable.last_event.as_secs()).to_bson()?,
+                "last_offline_checkpoint": now.to_bson()?,
+                "start_period": now.to_bson()?,
+            }
+        };
+
+        self.coll
+            .update_one(
+                doc! {
+                    "table_id.node_id": timetable.table_id.node_id.to_bson()?,
+                    "table_id.node_name": timetable.table_id.node_name.to_bson()?,
+                },
+                update,
+                None,
+            )
+            .await?;
+
+        Ok(true)
     }
 }
 
