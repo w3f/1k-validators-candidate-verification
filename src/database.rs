@@ -107,6 +107,12 @@ pub struct Timetable {
     start_period: LogTimestamp,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct TimetableId {
+    node_id: NodeId,
+    node_name: NodeName,
+}
+
 impl Timetable {
     fn new(node_id: NodeId, node_name: NodeName) -> Self {
         let now = LogTimestamp::new();
@@ -122,12 +128,6 @@ impl Timetable {
             start_period: now,
         }
     }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct TimetableId {
-    node_id: NodeId,
-    node_name: NodeName,
 }
 
 pub struct MongoClient {
@@ -246,7 +246,7 @@ pub struct TimetableStore {
 
 impl TimetableStore {
     pub async fn track_event(&self, event: TelemetryEvent) -> Result<()> {
-        let now = LogTimestamp::new();
+        let node_id = event.node_id();
 
         match event {
             // `AddedNode` events need special treatment since only those
@@ -257,7 +257,7 @@ impl TimetableStore {
 
                 // Lookup corresponding node Id of the node name, assuming it's tracked.
                 self.coll
-                    .update_many(
+                    .update_one(
                         doc! {
                             "table_id": {
                                 "node_id": node_id.to_bson()?,
@@ -279,7 +279,95 @@ impl TimetableStore {
                     )
                     .await?;
             }
-            _ => {}
+            _ => {
+                self.coll
+                    .update_many(
+                        doc! {
+                            "table_id.node_id": node_id.to_bson()?,
+                        },
+                        doc! {
+                            "$set": {
+                                "last_event": LogTimestamp::new().to_bson()?,
+                                "last_offline_checkpoint": null,
+                            },
+                        },
+                        None,
+                    )
+                    .await?;
+            }
+        }
+
+        Ok(())
+    }
+    pub async fn detect_downtime(&self, threshold: i64) -> Result<()> {
+        let threshold = LogTimestamp::new().as_secs() - threshold;
+
+        let mut timetables = self
+            .coll
+            .find(
+                doc! {
+                    "last_event": {
+                        "$lt": threshold.to_bson()?,
+                    }
+                },
+                None,
+            )
+            .await?;
+
+        // Take care of duplicate entries.
+        let mut tracked: HashMap<NodeName, Timetable> = HashMap::new();
+        while let Some(doc) = timetables.next().await {
+            let timetable: Timetable = from_document(doc?)?;
+            let node_name = &timetable.table_id.node_name;
+
+            if let Some(curr_table) = tracked.get(node_name) {
+                // Overwrite the the timetable on based on the latest event timestamp.
+                if curr_table.last_event < timetable.last_event {
+                    let node_id = curr_table.table_id.node_id.clone();
+                    let node_name = curr_table.table_id.node_name.clone();
+
+                    tracked.insert(node_name.clone(), timetable.clone());
+
+                    // Delete outdated timetable.
+                    self.coll
+                        .delete_one(
+                            doc! {
+                                "table_id.node_id": node_id.to_bson()?,
+                                "table_id.node_name": node_name.to_bson()?,
+                            },
+                            None,
+                        )
+                        .await?;
+                }
+            } else {
+                tracked.insert(node_name.clone(), timetable);
+            }
+        }
+
+        // Update offline counters and checkpoints.
+        let now = LogTimestamp::new();
+        for (node_id, timetable) in &tracked {
+            let update = if let Some(checkpoint) = timetable.last_offline_checkpoint {
+                doc! {
+                    "offline_counter": (now.as_secs() - checkpoint.as_secs()).to_bson()?,
+                    "last_offline_checkpoint": now.to_bson()?,
+                }
+            } else {
+                doc! {
+                    "last_offline_checkpoint": now.to_bson()?,
+                }
+            };
+
+            self.coll
+                .update_one(
+                    doc! {
+                        "table_id.node_id": node_id.to_bson()?,
+                        "table_id.node_name": timetable.table_id.node_name.to_bson()?,
+                    },
+                    update,
+                    None,
+                )
+                .await?;
         }
 
         Ok(())
