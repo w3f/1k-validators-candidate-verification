@@ -14,6 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_states";
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
+const TIMETABLE_STORE_COLLECTION: &'static str = "time_tables";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredStash;
@@ -137,6 +138,17 @@ impl MongoClient {
             )),
         }
     }
+    pub fn get_time_table_store(&self, config: TimetableStoreConfig, network: &Network) -> TimetableStore {
+        TimetableStore {
+            coll: self.db.collection(&format!(
+                "{}_{}",
+                TIMETABLE_STORE_COLLECTION,
+                network.as_ref()
+            )),
+            name_lookup: HashMap::new(),
+            config: config,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -198,13 +210,17 @@ impl CandidateStateStore {
     }
 }
 
-pub struct TimetableStore {
-    coll: Collection,
+pub struct TimetableStoreConfig {
     whitelist: HashSet<NodeName>,
-    name_lookup: HashMap<NodeId, NodeName>,
     threshold: i64,
     max_downtime: i64,
     monitoring_period: i64,
+}
+
+pub struct TimetableStore {
+    coll: Collection,
+    name_lookup: HashMap<NodeId, NodeName>,
+    config: TimetableStoreConfig,
 }
 
 impl TimetableStore {
@@ -223,7 +239,7 @@ impl TimetableStore {
                 let node_name = &event.details.name;
 
                 // Only process whitelisted node names.
-                if !self.whitelist.contains(&node_name) {
+                if !self.config.whitelist.contains(&node_name) {
                     return Ok(());
                 }
 
@@ -282,9 +298,9 @@ impl TimetableStore {
 
         Ok(())
     }
-    pub async fn detect_downtime(&self, threshold: i64, now: Option<LogTimestamp>) -> Result<()> {
+    pub async fn detect_downtime(&self, now: Option<LogTimestamp>) -> Result<()> {
         let now = now.unwrap_or(LogTimestamp::new());
-        let threshold = now.as_secs() - threshold;
+        let threshold = now.as_secs() - self.config.threshold;
 
         let mut cursor = self
             .coll
@@ -317,7 +333,7 @@ impl TimetableStore {
 
             // Check if the monitoring period has completed and reset, if appropriate.
             if let Some(start_period) = timetable.start_period {
-                if start_period.as_secs() < now.as_secs() - self.monitoring_period {
+                if start_period.as_secs() < now.as_secs() - self.config.monitoring_period {
                     update.extend(doc! {
                         "offline_counter": 0,
                         "start_period": now.to_bson()?,
@@ -346,7 +362,7 @@ impl TimetableStore {
                 doc! {
                     "node_name": candidate.node_name().to_bson()?,
                     "offline_counter": {
-                        "$gt": self.max_downtime.to_bson()?,
+                        "$gt": self.config.max_downtime.to_bson()?,
                     }
                 },
                 None,
