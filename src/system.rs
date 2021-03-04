@@ -221,63 +221,92 @@ pub async fn run_requirements_proceeding(
     Ok(())
 }
 
-#[tokio::test]
-#[ignore]
-async fn telemetry() {
-    let (mut stream, _) = connect_async("wss://telemetry-backend.w3f.community/feed")
-        .await
-        .unwrap();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // Subscribe to specified network.
-    stream
-        .send(Message::text(format!(
-            "subscribe:{}",
-            Network::Polkadot.as_ref()
-        )))
-        .await
-        .unwrap();
-
-    while let Some(msg) = stream.next().await {
-        match msg.unwrap() {
-            Message::Binary(content) => {
-                if let Ok(events) = TelemetryEvent::from_json(&content) {
-                    for event in events {
-                        println!("\n\n{}", serde_json::to_string(&event).unwrap());
-                    }
-                } else {
-                    error!("Failed to deserialize telemetry event");
-                }
-            }
-            _ => {}
+    impl Candidate {
+        pub fn alice() -> Self {
+            Candidate::new(
+                "".to_string(),
+                NodeName::alice(),
+                Network::Polkadot,
+            )
+        }
+        pub fn bob() -> Self {
+            Candidate::new(
+                "".to_string(),
+                NodeName::bob(),
+                Network::Polkadot,
+            )
+        }
+        pub fn eve() -> Self {
+            Candidate::new(
+                "".to_string(),
+                NodeName::eve(),
+                Network::Polkadot,
+            )
         }
     }
-}
 
-#[tokio::test]
-#[ignore]
-async fn requirements_proceeding() {
-    //env_logger::init();
+    #[tokio::test]
+    #[ignore]
+    async fn telemetry() {
+        let (mut stream, _) = connect_async("wss://telemetry-backend.w3f.community/feed")
+            .await
+            .unwrap();
 
-    let config = RequirementsProceedingConfig {
-        db_uri: "mongodb://localhost:27017/".to_string(),
-        db_name: "test_candidate_requirements".to_string(),
-        network: Network::Kusama,
-        rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
-        requirements_config: RequirementsConfig {
-            max_commission: 10,
-            min_bonded_amount: 10000,
-            node_activity_timespan: 0,
-            max_node_activity_diff: 0,
-        },
-    };
+        // Subscribe to specified network.
+        stream
+            .send(Message::text(format!(
+                "subscribe:{}",
+                Network::Polkadot.as_ref()
+            )))
+            .await
+            .unwrap();
 
-    let candidates = vec![Candidate::new(
-        "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
-        NodeName::new("Alice".to_string()),
-        Network::Kusama,
-    )];
+        while let Some(msg) = stream.next().await {
+            match msg.unwrap() {
+                Message::Binary(content) => {
+                    if let Ok(events) = TelemetryEvent::from_json(&content) {
+                        for event in events {
+                            println!("\n\n{}", serde_json::to_string(&event).unwrap());
+                        }
+                    } else {
+                        error!("Failed to deserialize telemetry event");
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 
-    run_requirements_proceeding(config, candidates)
-        .await
-        .unwrap();
+    #[tokio::test]
+    #[ignore]
+    async fn requirements_proceeding() {
+        //env_logger::init();
+
+        let config = RequirementsProceedingConfig {
+            db_uri: "mongodb://localhost:27017/".to_string(),
+            db_name: "test_candidate_requirements".to_string(),
+            network: Network::Kusama,
+            rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
+            requirements_config: RequirementsConfig {
+                max_commission: 10,
+                min_bonded_amount: 10000,
+                node_activity_timespan: 0,
+                max_node_activity_diff: 0,
+            },
+        };
+
+        let candidates = vec![Candidate::new(
+            "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
+            NodeName::new("Alice".to_string()),
+            Network::Kusama,
+        )];
+
+        run_requirements_proceeding(config, candidates)
+            .await
+            .unwrap();
+    }
 }

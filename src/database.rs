@@ -360,7 +360,14 @@ impl TimetableStore {
 
         Ok(())
     }
-    pub async fn has_downtime(&self, candidate: &Candidate) -> Result<Option<bool>> {
+    /// Checks whether the candidate has any downtime. Returns a tuple (if the
+    /// candidate could be found) where the `bool` indicates whether the
+    /// candidate should be punished (exceeds the maximum downtime) and the
+    /// `i64` indicates the downtime in seconds.
+    pub async fn has_downtime_violation(
+        &self,
+        candidate: &Candidate,
+    ) -> Result<Option<(bool, i64)>> {
         if let Some(doc) = self
             .coll
             .find_one(
@@ -371,12 +378,11 @@ impl TimetableStore {
             )
             .await?
         {
-            let timetable: Timetable = from_document(doc)?;
-
-            if timetable.offline_counter > self.config.max_downtime {
-                Ok(Some(true))
+            let offline_counter = from_document::<Timetable>(doc)?.offline_counter;
+            if offline_counter > self.config.max_downtime {
+                Ok(Some((true, offline_counter)))
             } else {
-                Ok(Some(false))
+                Ok(Some((false, offline_counter)))
             }
         } else {
             Ok(None)
@@ -866,15 +872,65 @@ mod tests {
             whitelist: vec![NodeName::alice(), NodeName::bob()]
                 .into_iter()
                 .collect(),
-            threshold: 20,
+            threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
         };
 
         // Create client.
-        let mut client = MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime")
-            .await
-            .unwrap()
-            .get_time_table_store(config, &Network::Polkadot);
+        let mut client =
+            MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime")
+                .await
+                .unwrap()
+                .get_time_table_store(config, &Network::Polkadot);
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+        let eve = Candidate::eve();
+
+        // Ignored events (node name not found).
+        let events = [
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::eve()), 0),
+        ];
+
+        let starting = LogTimestamp::new().as_secs();
+        for (event, interval) in &events {
+            client
+                .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        // Candidates could not be found.
+        assert!(client.has_downtime_violation(&alice).await.unwrap().is_none());
+        assert!(client.has_downtime_violation(&bob).await.unwrap().is_none());
+        assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
+
+        // Valid events (node name found)
+        let events = [
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
+            (TelemetryEvent::AddedNode(AddedNodeEvent::bob()), 0),
+            (TelemetryEvent::AddedNode(AddedNodeEvent::eve()), 0),
+        ];
+
+        for (event, interval) in &events {
+            client
+                .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        let (punish, downtime) = client.has_downtime_violation(&alice).await.unwrap().unwrap();
+        assert!(!punish);
+        assert_eq!(downtime, 0);
+
+        let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
+        assert!(!punish);
+        assert_eq!(downtime, 0);
+
+        // Eve is not on the whitelist.
+        assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
     }
 }
