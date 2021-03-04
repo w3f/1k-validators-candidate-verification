@@ -302,8 +302,9 @@ impl TimetableStore {
 
         Ok(())
     }
-    pub async fn detect_downtime(&self, threshold: i64) -> Result<()> {
-        let threshold = LogTimestamp::new().as_secs() - threshold;
+    pub async fn detect_downtime(&self, threshold: i64, now: Option<LogTimestamp>) -> Result<()> {
+        let now = now.unwrap_or(LogTimestamp::new());
+        let threshold = now.as_secs() - threshold;
 
         let mut timetables = self
             .coll
@@ -351,7 +352,6 @@ impl TimetableStore {
         }
 
         // Update offline counters and checkpoints.
-        let now = LogTimestamp::new();
         for (node_id, timetable) in &tracked {
             let update = if let Some(checkpoint) = timetable.last_offline_checkpoint {
                 doc! {
@@ -362,6 +362,7 @@ impl TimetableStore {
                 doc! {
                     "offline_counter": (now.as_secs() - timetable.last_event.as_secs()).to_bson()?,
                     "last_offline_checkpoint": now.to_bson()?,
+                    "start_period": now.to_bson()?,
                 }
             };
 
