@@ -285,7 +285,7 @@ impl TimetableStore {
                 },
                 doc! {
                     "$set": {
-                        "last_event": LogTimestamp::new().to_bson()?,
+                        "last_event": now.to_bson()?,
                         "checkpoint": null,
                     },
                     "$setOnInsert": {
@@ -322,17 +322,28 @@ impl TimetableStore {
         while let Some(doc) = cursor.next().await {
             let timetable: Timetable = from_document(doc?)?;
 
+            println!(">>> {:?}", timetable);
             // Update offline counters and checkpoints.
             let mut update = if let Some(checkpoint) = timetable.checkpoint {
+                println!("GOT HERE!!!!!!");
                 doc! {
-                    "offline_counter": (now - checkpoint).to_bson()?,
-                    "checkpoint": now.to_bson()?,
+                    "$set": {
+                        "checkpoint": now.to_bson()?,
+                    },
+                    "$inc": {
+                        "offline_counter": (now - checkpoint).to_bson()?,
+                    }
                 }
             } else {
+                println!("NOW: {}, LAST EVENT: {}", now.as_secs(), timetable.last_event.as_secs());
                 doc! {
-                    "offline_counter": (now - timetable.last_event).to_bson()?,
-                    "checkpoint": now.to_bson()?,
-                    "start_period": now.to_bson()?,
+                    "$set": {
+                        "checkpoint": now.to_bson()?,
+                        "start_period": now.to_bson()?,
+                    },
+                    "$inc": {
+                        "offline_counter": (now - timetable.last_event).to_bson()?,
+                    }
                 }
             };
 
@@ -340,8 +351,10 @@ impl TimetableStore {
             if let Some(start_period) = timetable.start_period {
                 if start_period.as_secs() < now.as_secs() - self.config.monitoring_period {
                     update.extend(doc! {
-                        "offline_counter": 0,
-                        "start_period": now.to_bson()?,
+                        "$set": {
+                            "offline_counter": 0,
+                            "start_period": now.to_bson()?,
+                        }
                     });
                 }
             }
@@ -387,6 +400,10 @@ impl TimetableStore {
         } else {
             Ok(None)
         }
+    }
+    #[cfg(test)]
+    async fn drop(&self) {
+        self.coll.drop(None).await.unwrap();
     }
 }
 
@@ -867,7 +884,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn track_event_downtime() {
+    async fn track_event_only_uptime() {
         let config = TimetableStoreConfig {
             whitelist: vec![NodeName::alice(), NodeName::bob()]
                 .into_iter()
@@ -879,10 +896,12 @@ mod tests {
 
         // Create client.
         let mut client =
-            MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime")
+            MongoClient::new("mongodb://localhost:27017/", "test_track_event_only_uptime")
                 .await
                 .unwrap()
                 .get_time_table_store(config, &Network::Polkadot);
+
+        client.drop().await;
 
         let alice = Candidate::alice();
         let bob = Candidate::bob();
@@ -901,18 +920,29 @@ mod tests {
                 .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
+
+            client.process_time_tables(Some(LogTimestamp(starting + interval))).await.unwrap();
         }
 
-        // Candidates could not be found.
+        // Candidates could not be found (`AddedNode` events must be tracked first).
         assert!(client.has_downtime_violation(&alice).await.unwrap().is_none());
         assert!(client.has_downtime_violation(&bob).await.unwrap().is_none());
         assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
 
         // Valid events (node name found)
         let events = [
+            // Alice
             (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 20),
+            // Bob
             (TelemetryEvent::AddedNode(AddedNodeEvent::bob()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 20),
+            // Eve
             (TelemetryEvent::AddedNode(AddedNodeEvent::eve()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::eve()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::eve()), 20),
         ];
 
         for (event, interval) in &events {
@@ -920,17 +950,80 @@ mod tests {
                 .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
+
+            client.process_time_tables(Some(LogTimestamp(starting + interval))).await.unwrap();
         }
 
         let (punish, downtime) = client.has_downtime_violation(&alice).await.unwrap().unwrap();
-        assert!(!punish);
+        assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
         let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
-        assert!(!punish);
+        assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
         // Eve is not on the whitelist.
         assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
+
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn track_event_downtime() {
+        let config = TimetableStoreConfig {
+            whitelist: vec![NodeName::alice(), NodeName::bob()]
+                .into_iter()
+                .collect(),
+            threshold: 12,
+            max_downtime: 50,
+            monitoring_period: 100,
+        };
+
+        // Create client.
+        let mut client =
+            MongoClient::new("mongodb://localhost:27017/", "track_event_downtime")
+                .await
+                .unwrap()
+                .get_time_table_store(config, &Network::Polkadot);
+
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+
+        // Valid events (node name found)
+        let events = [
+            // Alice
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 20),
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 30),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 40),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 50),
+            // Bob (downtimes, exceeds thresholds).
+            (TelemetryEvent::AddedNode(AddedNodeEvent::bob()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 20), // Downtime: 20 secs.
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 30),
+        ];
+
+        let starting = LogTimestamp::new().as_secs();
+        for (event, interval) in &events {
+            client
+                .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+
+            client.process_time_tables(Some(LogTimestamp(starting + interval))).await.unwrap();
+        }
+
+        let (punish, downtime) = client.has_downtime_violation(&alice).await.unwrap().unwrap();
+        assert_eq!(punish, false);
+        assert_eq!(downtime, 0);
+
+        let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
+        assert_eq!(punish, false); // Downtime, but does not exceed `max_downtime`.
+        assert_eq!(downtime, 20);
+
+        client.drop().await;
     }
 }
