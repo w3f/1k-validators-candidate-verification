@@ -225,6 +225,7 @@ use std::collections::{HashMap, HashSet};
 
 pub struct OfflineTracker {
     watch_list: HashMap<NodeId, Timetable>,
+    lookup: HashMap<NodeName, NodeId>,
     filter: HashSet<NodeName>,
     threshold: i64,
 }
@@ -237,19 +238,51 @@ struct Timetable {
 }
 
 impl OfflineTracker {
+    /// Keep track of the last event of a node. Duplicates node names and node
+    /// Id changes are handled accordingly.
     fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
         let timestamp = LogTimestamp::new();
 
-        if let Some(table) = self.watch_list.get_mut(event.node_id()) {
-            table.last_event = timestamp;
-        } else {
-            match event {
-                TelemetryEvent::AddedNode(event) => {
+        let mut update_lookup = None;
+
+        match event {
+            TelemetryEvent::AddedNode(event) => {
+                // Lookup corresponding node Id of the node name, assuming it's tracked.
+                if let Some(current_node_id) = self.lookup.get(&event.details.name) {
+                    // Detect if there is a new node Id for the given name.
+                    if current_node_id != &event.node_id {
+                        let node_name = event.details.name;
+                        let new_node_id = event.node_id;
+
+                        debug!(
+                            "Node Id of '{}' changed from {} to {}",
+                            node_name.as_str(),
+                            current_node_id.as_num(),
+                            new_node_id.as_num()
+                        );
+
+                        // Update lookup later to get around Rust's borrowing rules.
+                        update_lookup = Some((node_name.clone(), new_node_id.clone()));
+
+                        // Move current tracking state to new node Id.
+                        let mut state = self.watch_list.remove(current_node_id).ok_or(anyhow!(""))?;
+                        state.last_event = timestamp;
+                        self.watch_list.insert(new_node_id, state);
+                    }
+                }
+                // If no entry is present, create a new state.
+                else {
                     let node_name = event.details.name;
-                    if self.filter.contains(&node_name) {
+
+                    // Only track node names that are whitelisted.
+                    if !self.filter.contains(&node_name) {
                         return Ok(());
                     }
 
+                    // Insert lookup entry.
+                    self.lookup.insert(node_name.clone(), event.node_id.clone());
+
+                    // Insert tracking state.
                     self.watch_list.insert(
                         event.node_id,
                         Timetable {
@@ -260,8 +293,19 @@ impl OfflineTracker {
                         },
                     );
                 }
-                _ => {}
-            };
+
+                // Update lookup.
+                if let Some((node_name, node_id)) = update_lookup {
+                    self.lookup.insert(node_name, node_id);
+                }
+
+                return Ok(());
+            }
+            _ => {}
+        }
+
+        if let Some(table) = self.watch_list.get_mut(event.node_id()) {
+            table.last_event = timestamp;
         }
 
         Ok(())
