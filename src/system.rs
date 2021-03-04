@@ -52,13 +52,13 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
             .await?
             .get_telemetry_event_store(&config.network);
 
-        info!("Connecting to telemetry server {}", config.telemetry_host);
+        info!("Connecting to telemetry server {} ({})", config.telemetry_host, config.network.as_ref());
         let (mut stream, _) = connect_async(&config.telemetry_host)
             .await
             .map_err(|err| anyhow!("Failed to connect to telemetry server: {:?}", err))?;
 
         // Subscribe to specified network.
-        info!("Subscribing to {} node events", config.network.as_ref());
+        info!("Subscribing to node events ({})", config.network.as_ref());
         stream
             .send(Message::text(format!(
                 "subscribe:{}",
@@ -74,7 +74,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
             })?;
 
         info!(
-            "Starting event loop for {} network",
+            "Starting event loop ({})",
             config.network.as_ref()
         );
 
@@ -159,7 +159,7 @@ pub async fn run_requirements_proceeding(
     config: RequirementsProceedingConfig,
     candidates: Vec<Candidate>,
 ) -> Result<()> {
-    info!("Opening MongoDB client");
+    info!("Opening MongoDB client ({})", config.network.as_ref());
     let store = MongoClient::new(&config.db_uri, &config.db_name).await?;
 
     let candidate_store = store.get_candidate_state_store(&config.network);
