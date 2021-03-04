@@ -866,13 +866,13 @@ mod tests {
             whitelist: vec![NodeName::alice(), NodeName::bob()]
                 .into_iter()
                 .collect(),
-            threshold: 5,
-            max_downtime: 20,
+            threshold: 20,
+            max_downtime: 50,
             monitoring_period: 100,
         };
 
         // Create client.
-        let client = MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime")
+        let mut client = MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime")
             .await
             .unwrap()
             .get_time_table_store(config, &Network::Polkadot);
