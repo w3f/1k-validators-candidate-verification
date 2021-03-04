@@ -49,12 +49,11 @@ struct RawCandidate {
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
+        .filter_module("candidate_verifier", log::LevelFilter::Info)
+        .filter_module("lib", log::LevelFilter::Info)
         .init();
 
     let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
-
-    println!(">> {:?}", root_config);
 
     // Process telemetry tracker configuration.
     let tracker = root_config.telemetry_watcher;
@@ -64,6 +63,7 @@ async fn main() -> Result<()> {
         ))?;
 
         for network in tracker_config.networks {
+            info!("Starting telemetry watcher for {} network",  network.as_ref());
             let specialized = TelemetryWatcherConfig {
                 db_uri: root_config.db_uri.clone(),
                 db_name: root_config.db_name.clone(),
@@ -84,6 +84,8 @@ async fn main() -> Result<()> {
 
         for network_config in verifier_config {
             let network = network_config.network;
+            info!("Starting candidate verifier for {} network",  network.as_ref());
+
             let specialized = RequirementsProceedingConfig {
                 db_uri: root_config.db_uri.clone(),
                 db_name: root_config.db_name.clone(),
