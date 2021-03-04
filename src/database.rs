@@ -102,34 +102,11 @@ impl CandidateState {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Timetable {
-    table_id: TimetableId,
+    node_name: NodeName,
     last_event: LogTimestamp,
-    offline_counter: i64,
+    offline_counter: Option<i64>,
     last_offline_checkpoint: Option<LogTimestamp>,
     start_period: Option<LogTimestamp>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct TimetableId {
-    node_id: NodeId,
-    node_name: NodeName,
-}
-
-impl Timetable {
-    fn new(node_id: NodeId, node_name: NodeName) -> Self {
-        let now = LogTimestamp::new();
-
-        Timetable {
-            table_id: TimetableId {
-                node_id: node_id,
-                node_name: node_name,
-            },
-            last_event: now,
-            offline_counter: 0,
-            last_offline_checkpoint: None,
-            start_period: None,
-        }
-    }
 }
 
 pub struct MongoClient {
@@ -224,61 +201,72 @@ impl CandidateStateStore {
 pub struct TimetableStore {
     coll: Collection,
     whitelist: HashSet<NodeName>,
+    name_lookup: HashMap<NodeId, NodeName>,
 }
 
 impl TimetableStore {
-    pub async fn track_event(&self, event: TelemetryEvent) -> Result<()> {
+    pub async fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
         let node_id = event.node_id();
 
-        match event {
+        let node_name = match event {
             // `AddedNode` events need special treatment since only those
             // specify a node name.
-            TelemetryEvent::AddedNode(event) => {
-                let node_id = event.node_id;
-                let node_name = event.details.name;
+            TelemetryEvent::AddedNode(ref event) => {
+                let node_name = &event.details.name;
 
-                // Lookup corresponding node Id of the node name, assuming it's tracked.
-                self.coll
-                    .update_one(
-                        doc! {
-                            "table_id.node_id": node_id.to_bson()?,
-                            "table_id.node_name": node_name.to_bson()?,
-                        },
-                        doc! {
-                            "$set": {
-                                "last_event": LogTimestamp::new().to_bson()?,
-                                "last_offline_checkpoint": null,
-                            },
-                        },
-                        Some({
-                            let mut options = UpdateOptions::default();
-                            options.upsert = Some(true);
-                            options
-                        }),
-                    )
-                    .await?;
+                // Only process whitelisted node names.
+                if !self.whitelist.contains(&node_name) {
+                    return Ok(());
+                }
+
+                // Find existing node name duplicates which will be pruned. This
+                // might be slightly time consuming, but `AddedNode` events are
+                // primarily generated on initial connection and rarely occur
+                // later on.
+                let mut to_delete = vec![];
+                for (curr_node_id, curr_node_name) in &self.name_lookup {
+                    if curr_node_name == node_name {
+                        to_delete.push(curr_node_id.clone());
+                    }
+                }
+
+                for node_id in &to_delete {
+                    self.name_lookup.remove(node_id);
+                }
+
+                // Update the node Id with the newest, corresponding node name.
+                self.name_lookup.insert(node_id.clone(), node_name.clone());
+
+                node_name
             }
             _ => {
-                self.coll
-                    .update_many(
-                        doc! {
-                            "table_id.node_id": node_id.to_bson()?,
-                        },
-                        doc! {
-                            "$set": {
-                                "last_event": LogTimestamp::new().to_bson()?,
-                                "last_offline_checkpoint": null,
-                            },
-                        },
-                        Some({
-                            let mut options = UpdateOptions::default();
-                            options.upsert = Some(true);
-                            options
-                        }),
-                    )
-                    .await?;
+                // Lookup node name or whether to ignore the event.
+                if let Some(node_name) = self.name_lookup.get(node_id) {
+                    node_name
+                } else {
+                    return Ok(());
+                }
             }
-        }
+        };
+
+        // Update last event timestamp.
+        self.coll
+            .update_one(
+                doc! {
+                    "node_name": node_name.to_bson()?,
+                },
+                doc! {
+                    "$set": {
+                        "last_event": LogTimestamp::new().to_bson()?,
+                    },
+                },
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
+            )
+            .await?;
 
         Ok(())
     }
@@ -286,16 +274,17 @@ impl TimetableStore {
         &self,
         candidate: Candidate,
         threshold: i64,
+        max_downtime: i64,
         now: Option<LogTimestamp>,
     ) -> Result<bool> {
         let now = now.unwrap_or(LogTimestamp::new());
         let threshold = now.as_secs() - threshold;
 
-        let mut timetables = self
+        let doc = self
             .coll
-            .find(
+            .find_one(
                 doc! {
-                    "table_id": candidate.node_name().to_bson()?,
+                    "node_name": candidate.node_name().to_bson()?,
                     "last_event": {
                         "$lt": threshold.to_bson()?,
                     }
@@ -304,46 +293,14 @@ impl TimetableStore {
             )
             .await?;
 
-        // Take care of duplicate entries.
-        let mut selected: Option<Timetable> = None;
-        while let Some(doc) = timetables.next().await {
-            let timetable: Timetable = from_document(doc?)?;
-            let node_name = &timetable.table_id.node_name;
-
-            // Check if the node name already exists.
-            if let Some(curr_table) = selected.as_ref() {
-                // Overwrite the the timetable based on the latest event timestamp.
-                if curr_table.last_event < timetable.last_event {
-                    // Prepare info for deletion.
-                    let del_node_id = curr_table.table_id.node_id.clone();
-                    let del_node_name = curr_table.table_id.node_name.clone();
-
-                    // Update timetable.
-                    selected = Some(timetable);
-
-                    // Delete outdated timetable.
-                    self.coll
-                        .delete_one(
-                            doc! {
-                                "table_id.node_id": del_node_id.to_bson()?,
-                                "table_id.node_name": del_node_name.to_bson()?,
-                            },
-                            None,
-                        )
-                        .await?;
-                }
-            } else {
-                selected = Some(timetable);
-            }
-        }
-
-        // If no timetable was selected it means that there was no downtime.
-        if selected.is_none() {
+        // Check if condition was met. Return if no downtime was detected.
+        let timetable: Timetable = if let Some(doc) = doc {
+            from_document(doc)?
+        } else {
             return Ok(false);
-        }
+        };
 
         // Update offline counters and checkpoints.
-        let timetable = selected.unwrap();
         let update = if let Some(checkpoint) = timetable.last_offline_checkpoint {
             doc! {
                 "offline_counter": (now.as_secs() - checkpoint.as_secs()).to_bson()?,
@@ -357,18 +314,25 @@ impl TimetableStore {
             }
         };
 
+        // Insert state into storage.
         self.coll
             .update_one(
                 doc! {
-                    "table_id.node_id": timetable.table_id.node_id.to_bson()?,
-                    "table_id.node_name": timetable.table_id.node_name.to_bson()?,
+                    "node_name": timetable.node_name.to_bson()?,
                 },
                 update,
                 None,
             )
             .await?;
 
-        Ok(true)
+        // Determine whether the node should be punished.
+        if let Some(start_period) = timetable.start_period {
+            if now.as_secs() > start_period.as_secs() + max_downtime {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 }
 
