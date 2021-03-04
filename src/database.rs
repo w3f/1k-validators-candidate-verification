@@ -320,20 +320,23 @@ impl TimetableStore {
             let timetable: Timetable = from_document(doc?)?;
             let node_name = &timetable.table_id.node_name;
 
+            // Check if the node name already exists.
             if let Some(curr_table) = tracked.get(node_name) {
-                // Overwrite the the timetable on based on the latest event timestamp.
+                // Overwrite the the timetable based on the latest event timestamp.
                 if curr_table.last_event < timetable.last_event {
-                    let node_id = curr_table.table_id.node_id.clone();
-                    let node_name = curr_table.table_id.node_name.clone();
+                    // Prepare info for deletion.
+                    let del_node_id = curr_table.table_id.node_id.clone();
+                    let del_node_name = curr_table.table_id.node_name.clone();
 
+                    // Update timetable.
                     tracked.insert(node_name.clone(), timetable.clone());
 
                     // Delete outdated timetable.
                     self.coll
                         .delete_one(
                             doc! {
-                                "table_id.node_id": node_id.to_bson()?,
-                                "table_id.node_name": node_name.to_bson()?,
+                                "table_id.node_id": del_node_id.to_bson()?,
+                                "table_id.node_name": del_node_name.to_bson()?,
                             },
                             None,
                         )
@@ -354,6 +357,7 @@ impl TimetableStore {
                 }
             } else {
                 doc! {
+                    "offline_counter": (now.as_secs() - timetable.last_event.as_secs()).to_bson()?,
                     "last_offline_checkpoint": now.to_bson()?,
                 }
             };
