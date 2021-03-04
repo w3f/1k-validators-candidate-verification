@@ -105,7 +105,7 @@ pub struct Timetable {
     node_name: NodeName,
     last_event: LogTimestamp,
     offline_counter: Option<i64>,
-    last_offline_checkpoint: Option<LogTimestamp>,
+    checkpoint: Option<LogTimestamp>,
     start_period: Option<LogTimestamp>,
 }
 
@@ -202,10 +202,18 @@ pub struct TimetableStore {
     coll: Collection,
     whitelist: HashSet<NodeName>,
     name_lookup: HashMap<NodeId, NodeName>,
+    threshold: i64,
+    max_downtime: i64,
+    monitoring_period: i64,
 }
 
 impl TimetableStore {
-    pub async fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
+    pub async fn track_event(
+        &mut self,
+        event: TelemetryEvent,
+        now: Option<LogTimestamp>,
+    ) -> Result<()> {
+        let now = now.unwrap_or(LogTimestamp::new());
         let node_id = event.node_id();
 
         let node_name = match event {
@@ -258,7 +266,11 @@ impl TimetableStore {
                 doc! {
                     "$set": {
                         "last_event": LogTimestamp::new().to_bson()?,
+                        "checkpoint": null,
                     },
+                    "$setOnInsert": {
+                        "start_period": now.to_bson()?,
+                    }
                 },
                 Some({
                     let mut options = UpdateOptions::default();
@@ -270,21 +282,14 @@ impl TimetableStore {
 
         Ok(())
     }
-    pub async fn detect_downtime(
-        &self,
-        candidate: Candidate,
-        threshold: i64,
-        max_downtime: i64,
-        now: Option<LogTimestamp>,
-    ) -> Result<bool> {
+    pub async fn detect_downtime(&self, threshold: i64, now: Option<LogTimestamp>) -> Result<()> {
         let now = now.unwrap_or(LogTimestamp::new());
         let threshold = now.as_secs() - threshold;
 
-        let doc = self
+        let mut cursor = self
             .coll
-            .find_one(
+            .find(
                 doc! {
-                    "node_name": candidate.node_name().to_bson()?,
                     "last_event": {
                         "$lt": threshold.to_bson()?,
                     }
@@ -293,43 +298,63 @@ impl TimetableStore {
             )
             .await?;
 
-        // Check if condition was met. Return if no downtime was detected.
-        let timetable: Timetable = if let Some(doc) = doc {
-            from_document(doc)?
-        } else {
-            return Ok(false);
-        };
+        while let Some(doc) = cursor.next().await {
+            let timetable: Timetable = from_document(doc?)?;
 
-        // Update offline counters and checkpoints.
-        let update = if let Some(checkpoint) = timetable.last_offline_checkpoint {
-            doc! {
-                "offline_counter": (now.as_secs() - checkpoint.as_secs()).to_bson()?,
-                "last_offline_checkpoint": now.to_bson()?,
-            }
-        } else {
-            doc! {
-                "offline_counter": (now.as_secs() - timetable.last_event.as_secs()).to_bson()?,
-                "last_offline_checkpoint": now.to_bson()?,
-                "start_period": now.to_bson()?,
-            }
-        };
-
-        // Insert state into storage.
-        self.coll
-            .update_one(
+            // Update offline counters and checkpoints.
+            let mut update = if let Some(checkpoint) = timetable.checkpoint {
                 doc! {
-                    "node_name": timetable.node_name.to_bson()?,
+                    "offline_counter": (now - checkpoint).to_bson()?,
+                    "checkpoint": now.to_bson()?,
+                }
+            } else {
+                doc! {
+                    "offline_counter": (now - timetable.last_event).to_bson()?,
+                    "checkpoint": now.to_bson()?,
+                    "start_period": now.to_bson()?,
+                }
+            };
+
+            // Check if the monitoring period has completed and reset, if appropriate.
+            if let Some(start_period) = timetable.start_period {
+                if start_period.as_secs() < now.as_secs() - self.monitoring_period {
+                    update.extend(doc! {
+                        "offline_counter": 0,
+                        "start_period": now.to_bson()?,
+                    });
+                }
+            }
+
+            // Insert state into storage.
+            self.coll
+                .update_one(
+                    doc! {
+                        "node_name": timetable.node_name.to_bson()?,
+                    },
+                    update,
+                    None,
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
+    pub async fn has_downtime(&self, candidate: &Candidate) -> Result<bool> {
+        if self
+            .coll
+            .find_one(
+                doc! {
+                    "node_name": candidate.node_name().to_bson()?,
+                    "offline_counter": {
+                        "$gt": self.max_downtime.to_bson()?,
+                    }
                 },
-                update,
                 None,
             )
-            .await?;
-
-        // Determine whether the node should be punished.
-        if let Some(start_period) = timetable.start_period {
-            if now.as_secs() > start_period.as_secs() + max_downtime {
-                return Ok(true);
-            }
+            .await?
+            .is_some()
+        {
+            return Ok(true);
         }
 
         Ok(false)
@@ -358,8 +383,6 @@ impl TelemetryEventStore {
         let node_id = event.node_id();
         let node_name = event.node_name();
         let timestamp = timestamp.unwrap_or(LogTimestamp::new());
-
-        //self.insert_node_info(node_id, node_name).await?;
 
         self.coll
             .update_one(
