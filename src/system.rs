@@ -52,7 +52,11 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
             .await?
             .get_telemetry_event_store(&config.network);
 
-        info!("Connecting to telemetry server {} ({})", config.telemetry_host, config.network.as_ref());
+        info!(
+            "Connecting to telemetry server {} ({})",
+            config.telemetry_host,
+            config.network.as_ref()
+        );
         let (mut stream, _) = connect_async(&config.telemetry_host)
             .await
             .map_err(|err| anyhow!("Failed to connect to telemetry server: {:?}", err))?;
@@ -73,10 +77,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 )
             })?;
 
-        info!(
-            "Starting event loop ({})",
-            config.network.as_ref()
-        );
+        info!("Starting event loop ({})", config.network.as_ref());
 
         let store = client;
 
@@ -85,6 +86,13 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 Message::Binary(content) => {
                     if let Ok(events) = TelemetryEvent::from_json(&content) {
                         for event in events {
+                            debug!(
+                                "NodeId {} (name \"{}\"): new '{}' event",
+                                event.node_id().as_num(),
+                                event.node_name().map(|n| n.as_str()).unwrap_or("N/A"),
+                                event.event_name(),
+                            );
+
                             store.store_event(event).await?;
                         }
                     } else {
@@ -93,7 +101,6 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 }
                 _ => {}
             }
-
         }
 
         Result::Ok(())

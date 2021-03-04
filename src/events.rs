@@ -46,6 +46,15 @@ impl NodeName {
     pub fn new(name: String) -> Self {
         NodeName(name)
     }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl NodeId {
+    pub fn as_num(&self) -> i64 {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -73,6 +82,15 @@ impl TelemetryEvent {
         match self {
             TelemetryEvent::AddedNode(event) => Some(&event.details.name),
             _ => None,
+        }
+    }
+    pub fn event_name(&self) -> &str {
+        match self {
+            TelemetryEvent::AddedNode(_) => "AddedNode",
+            TelemetryEvent::Hardware(_) => "Hardware",
+            TelemetryEvent::NodeStats(_) => "NodeStats",
+            #[cfg(test)]
+            TelemetryEvent::TestMessage(_, _) => "TestMessage",
         }
     }
 }

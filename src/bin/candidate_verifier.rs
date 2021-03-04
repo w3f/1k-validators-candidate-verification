@@ -63,7 +63,10 @@ async fn main() -> Result<()> {
         ))?;
 
         for network in tracker_config.networks {
-            info!("Starting telemetry watcher for {} network",  network.as_ref());
+            info!(
+                "Starting telemetry watcher for {} network",
+                network.as_ref()
+            );
             let specialized = TelemetryWatcherConfig {
                 db_uri: root_config.db_uri.clone(),
                 db_name: root_config.db_name.clone(),
@@ -84,7 +87,10 @@ async fn main() -> Result<()> {
 
         for network_config in verifier_config {
             let network = network_config.network;
-            info!("Starting candidate verifier for {} network",  network.as_ref());
+            info!(
+                "Starting candidate verifier for {} network",
+                network.as_ref()
+            );
 
             let specialized = RequirementsProceedingConfig {
                 db_uri: root_config.db_uri.clone(),
