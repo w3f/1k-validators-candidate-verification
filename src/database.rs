@@ -98,6 +98,38 @@ impl CandidateState {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Timetable {
+    table_id: TimetableId,
+    last_event: LogTimestamp,
+    offline_counter: i64,
+    last_offline_checkpoint: Option<LogTimestamp>,
+    start_period: LogTimestamp,
+}
+
+impl Timetable {
+    fn new(node_id: NodeId, node_name: NodeName) -> Self {
+        let now = LogTimestamp::new();
+
+        Timetable {
+            table_id: TimetableId {
+                node_id: node_id,
+                node_name: node_name,
+            },
+            last_event: now,
+            offline_counter: 0,
+            last_offline_checkpoint: None,
+            start_period: now,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct TimetableId {
+    node_id: NodeId,
+    node_name: NodeName,
+}
+
 pub struct MongoClient {
     db: Database,
 }
@@ -202,6 +234,55 @@ impl CandidateStateStore {
         } else {
             Ok(None)
         }
+    }
+}
+
+use std::collections::HashSet;
+
+pub struct TimetableStore {
+    coll: Collection,
+    whitelist: HashSet<NodeName>,
+}
+
+impl TimetableStore {
+    pub async fn track_event(&self, event: TelemetryEvent) -> Result<()> {
+        let now = LogTimestamp::new();
+
+        match event {
+            // `AddedNode` events need special treatment since only those
+            // specify a node name and can potentially change the node id.
+            TelemetryEvent::AddedNode(event) => {
+                let node_id = event.node_id;
+                let node_name = event.details.name;
+
+                // Lookup corresponding node Id of the node name, assuming it's tracked.
+                self.coll
+                    .update_many(
+                        doc! {
+                            "table_id": {
+                                "node_id": node_id.to_bson()?,
+                                "node_name": node_name.to_bson()?,
+                            }
+                        },
+                        doc! {
+                            "$setOnInsert": Timetable::new(node_id, node_name).to_bson()?,
+                            "$set": {
+                                "last_event": LogTimestamp::new().to_bson()?,
+                                "last_offline_checkpoint": null,
+                            },
+                        },
+                        Some({
+                            let mut options = UpdateOptions::default();
+                            options.upsert = Some(true);
+                            options
+                        }),
+                    )
+                    .await?;
+            }
+            _ => {}
+        }
+
+        Ok(())
     }
 }
 
