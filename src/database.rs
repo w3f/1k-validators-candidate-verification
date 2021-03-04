@@ -58,7 +58,9 @@ pub struct NodeActivity {
     pub node_name: Option<NodeName>,
     pub stash: Option<RegisteredStash>,
     pub controller: Option<RegisteredController>,
-    pub last_event_timestamp: LogTimestamp,
+    #[serde(skip_serializing)]
+    pub last_event_timestamp: Option<LogTimestamp>,
+    #[serde(skip_serializing)]
     pub events: Vec<EventLog<TelemetryEvent>>,
 }
 
@@ -69,7 +71,7 @@ impl NodeActivity {
             node_name: name,
             stash: None,
             controller: None,
-            last_event_timestamp: LogTimestamp::new(),
+            last_event_timestamp: None,
             events: vec![],
         }
     }
@@ -104,7 +106,7 @@ pub struct Timetable {
     last_event: LogTimestamp,
     offline_counter: i64,
     last_offline_checkpoint: Option<LogTimestamp>,
-    start_period: LogTimestamp,
+    start_period: Option<LogTimestamp>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -125,7 +127,7 @@ impl Timetable {
             last_event: now,
             offline_counter: 0,
             last_offline_checkpoint: None,
-            start_period: now,
+            start_period: None,
         }
     }
 }
@@ -259,13 +261,10 @@ impl TimetableStore {
                 self.coll
                     .update_one(
                         doc! {
-                            "table_id": {
-                                "node_id": node_id.to_bson()?,
-                                "node_name": node_name.to_bson()?,
-                            }
+                            "table_id.node_id": node_id.to_bson()?,
+                            "table_id.node_name": node_name.to_bson()?,
                         },
                         doc! {
-                            "$setOnInsert": Timetable::new(node_id, node_name).to_bson()?,
                             "$set": {
                                 "last_event": LogTimestamp::new().to_bson()?,
                                 "last_offline_checkpoint": null,
@@ -291,7 +290,11 @@ impl TimetableStore {
                                 "last_offline_checkpoint": null,
                             },
                         },
-                        None,
+                        Some({
+                            let mut options = UpdateOptions::default();
+                            options.upsert = Some(true);
+                            options
+                        }),
                     )
                     .await?;
             }
@@ -388,27 +391,6 @@ impl TelemetryEventStore {
     async fn drop(&self) {
         self.coll.drop(None).await.unwrap();
     }
-    // MongoDb cannot `$setOnInsert` followed by field modifications without
-    // throwing conflicts...
-    async fn insert_node_info(&self, node_id: &NodeId, node_name: Option<&NodeName>) -> Result<()> {
-        self.coll
-            .update_one(
-                doc! {
-                    "node_id": node_id.to_bson()?,
-                },
-                doc! {
-                    "$setOnInsert": NodeActivity::new(node_id.clone(), node_name.map(|n| n.clone())).to_bson()?,
-                },
-                Some({
-                    let mut options = UpdateOptions::default();
-                    options.upsert = Some(true);
-                    options
-                }),
-            )
-            .await?;
-
-        Ok(())
-    }
     pub async fn store_event(&self, event: TelemetryEvent) -> Result<()> {
         self.store_event_with_timestamp(event, None).await
     }
@@ -422,7 +404,7 @@ impl TelemetryEventStore {
         let node_name = event.node_name();
         let timestamp = timestamp.unwrap_or(LogTimestamp::new());
 
-        self.insert_node_info(node_id, node_name).await?;
+        //self.insert_node_info(node_id, node_name).await?;
 
         self.coll
             .update_one(
@@ -440,7 +422,11 @@ impl TelemetryEventStore {
                         }.to_bson()?
                     }
                 },
-                None,
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
             )
             .await?;
 
