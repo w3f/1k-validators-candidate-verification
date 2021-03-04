@@ -233,19 +233,24 @@ pub struct OfflineTracker {
 struct Timetable {
     node_name: NodeName,
     last_event: LogTimestamp,
-    offline_counter: u64,
+    offline_counter: i64,
+    last_offline_checkpoint: Option<LogTimestamp>,
     start_period: LogTimestamp,
 }
 
 impl OfflineTracker {
-    /// Keep track of the last event of a node. Duplicates node names and node
-    /// Id changes are handled accordingly.
+    /// Keep track of the last event of a node. Node Id changes are handled
+    /// accordingly. In terms of duplicate node names, the system will simply
+    /// treat it as one. As long as one node name creates events reliably, the
+    /// downtime counter is not triggered.
     fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
-        let timestamp = LogTimestamp::new();
+        let now = LogTimestamp::new();
 
         let mut update_lookup = None;
 
         match event {
+            // `AddedNode` events need special treatment since only those
+            // specify a node name and can potentially change the node id.
             TelemetryEvent::AddedNode(event) => {
                 // Lookup corresponding node Id of the node name, assuming it's tracked.
                 if let Some(current_node_id) = self.lookup.get(&event.details.name) {
@@ -265,8 +270,12 @@ impl OfflineTracker {
                         update_lookup = Some((node_name.clone(), new_node_id.clone()));
 
                         // Move current tracking state to new node Id.
-                        let mut state = self.watch_list.remove(current_node_id).ok_or(anyhow!(""))?;
-                        state.last_event = timestamp;
+                        let mut state =
+                            self.watch_list.remove(current_node_id).ok_or(anyhow!(""))?;
+
+                        state.last_event = now;
+                        state.last_offline_checkpoint = None;
+
                         self.watch_list.insert(new_node_id, state);
                     }
                 }
@@ -287,9 +296,10 @@ impl OfflineTracker {
                         event.node_id,
                         Timetable {
                             node_name: node_name,
-                            last_event: timestamp.clone(),
+                            last_event: now.clone(),
                             offline_counter: 0,
-                            start_period: timestamp,
+                            last_offline_checkpoint: None,
+                            start_period: now,
                         },
                     );
                 }
@@ -305,10 +315,56 @@ impl OfflineTracker {
         }
 
         if let Some(table) = self.watch_list.get_mut(event.node_id()) {
-            table.last_event = timestamp;
+            table.last_event = now;
+
+            // Remove offline checkpoint.
+            table.last_offline_checkpoint = None;
         }
 
         Ok(())
+    }
+    /// Check the entire watch list for downtime and mark those accordingly.
+    pub fn detect_downtime(&mut self) {
+        let now = LogTimestamp::new();
+
+        for (node_id, table) in &mut self.watch_list {
+            // Check if the last event is older then the given threshold.
+            if now.as_secs() > table.last_event.as_secs() + self.threshold {
+                if let Some(checkpoint) = &mut table.last_offline_checkpoint {
+                    table.offline_counter += (now - *checkpoint).as_secs();
+                    *checkpoint = now.clone();
+
+                    warn!(
+                        "Node Id {} (name '{}') has not been online for roughly {} seconds ({} minutes)",
+                        node_id.as_num(),
+                        table.node_name.as_str(),
+                        checkpoint.as_secs(),
+                        {
+                            let in_min = checkpoint.as_secs() / 60;
+                            if checkpoint.as_secs() % 60 == 0 {
+                                in_min.to_string()
+                            } else {
+                                format!("ca. {}", in_min)
+                            }
+                        },
+                    );
+                }
+                // If the downtime was just detected just now, add a checkpoint.
+                else {
+                    warn!(
+                        "Downtime detected for node Id {} (name '{}'), keeping count...",
+                        node_id.as_num(),
+                        table.node_name.as_str(),
+                    );
+
+                    let checkpoint = table.last_event;
+
+                    // Insert into state.
+                    table.offline_counter += (now - checkpoint).as_secs();
+                    table.last_offline_checkpoint = Some(checkpoint);
+                }
+            }
+        }
     }
 }
 

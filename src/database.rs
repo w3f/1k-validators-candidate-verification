@@ -9,6 +9,7 @@ use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
 use std::collections::HashMap;
+use std::ops::{Add, Sub};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_states";
@@ -18,7 +19,7 @@ const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
 pub struct RegisteredStash;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredController;
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize)]
 pub struct LogTimestamp(i64);
 
 impl LogTimestamp {
@@ -32,6 +33,22 @@ impl LogTimestamp {
     }
     pub fn as_secs(&self) -> i64 {
         self.0
+    }
+}
+
+impl Add for LogTimestamp {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        LogTimestamp(self.0 + other.0)
+    }
+}
+
+impl Sub for LogTimestamp {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        LogTimestamp(self.0 - other.0)
     }
 }
 
