@@ -78,6 +78,15 @@ impl TelemetryEvent {
             TelemetryEvent::TestMessage(node_id, _) => node_id,
         }
     }
+    pub fn node_id_owned(self) -> NodeId {
+        match self {
+            TelemetryEvent::AddedNode(event) => event.node_id,
+            TelemetryEvent::Hardware(event) => event.node_id,
+            TelemetryEvent::NodeStats(event) => event.node_id,
+            #[cfg(test)]
+            TelemetryEvent::TestMessage(node_id, _) => node_id,
+        }
+    }
     pub fn node_name(&self) -> Option<&NodeName> {
         match self {
             TelemetryEvent::AddedNode(event) => Some(&event.details.name),

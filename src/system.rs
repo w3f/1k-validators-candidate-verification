@@ -1,5 +1,5 @@
-use crate::database::{CandidateState, MongoClient};
-use crate::events::{NodeName, TelemetryEvent};
+use crate::database::{CandidateState, LogTimestamp, MongoClient};
+use crate::events::{NodeId, NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
@@ -219,6 +219,53 @@ pub async fn run_requirements_proceeding(
     }
 
     Ok(())
+}
+
+use std::collections::{HashMap, HashSet};
+
+pub struct OfflineTracker {
+    watch_list: HashMap<NodeId, Timetable>,
+    filter: HashSet<NodeName>,
+    threshold: i64,
+}
+
+struct Timetable {
+    node_name: NodeName,
+    last_event: LogTimestamp,
+    offline_counter: u64,
+    start_period: LogTimestamp,
+}
+
+impl OfflineTracker {
+    fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
+        let timestamp = LogTimestamp::new();
+
+        if let Some(table) = self.watch_list.get_mut(event.node_id()) {
+            table.last_event = timestamp;
+        } else {
+            match event {
+                TelemetryEvent::AddedNode(event) => {
+                    let node_name = event.details.name;
+                    if self.filter.contains(&node_name) {
+                        return Ok(());
+                    }
+
+                    self.watch_list.insert(
+                        event.node_id,
+                        Timetable {
+                            node_name: node_name,
+                            last_event: timestamp.clone(),
+                            offline_counter: 0,
+                            start_period: timestamp,
+                        },
+                    );
+                }
+                _ => {}
+            };
+        }
+
+        Ok(())
+    }
 }
 
 #[tokio::test]
