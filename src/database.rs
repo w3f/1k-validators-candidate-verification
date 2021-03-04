@@ -30,6 +30,9 @@ impl LogTimestamp {
                 .as_secs() as i64,
         )
     }
+    pub fn as_secs(&self) -> i64 {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -371,7 +374,7 @@ impl TelemetryEventStore {
         last: u64,
         max_diff: u64,
     ) -> Result<bool> {
-        let events_after = LogTimestamp::new().0 - last as i64;
+        let events_after = LogTimestamp::new().as_secs() - last as i64;
 
         let cursor = self
             .coll
@@ -617,7 +620,7 @@ mod tests {
             (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 40),
         ];
 
-        let starting = LogTimestamp::new().0;
+        let starting = LogTimestamp::new().as_secs();
         for (message, interval) in &messages {
             client
                 .store_event_with_timestamp(
@@ -658,7 +661,7 @@ mod tests {
             (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 60),
         ];
 
-        let starting = LogTimestamp::new().0;
+        let starting = LogTimestamp::new().as_secs();
         for (message, interval) in &messages {
             client
                 .store_event_with_timestamp(

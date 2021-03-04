@@ -93,6 +93,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 }
                 _ => {}
             }
+
         }
 
         Result::Ok(())

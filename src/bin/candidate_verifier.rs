@@ -49,8 +49,8 @@ struct RawCandidate {
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::Builder::new()
-        .filter_module("candidate_verifier", log::LevelFilter::Info)
-        .filter_module("lib", log::LevelFilter::Info)
+        .filter_module("candidate_verifier", log::LevelFilter::Debug)
+        .filter_module("lib", log::LevelFilter::Debug)
         .init();
 
     let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
