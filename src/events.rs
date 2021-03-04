@@ -453,6 +453,18 @@ mod tests {
         }
     }
 
+    impl NodeName {
+        pub fn alice() -> Self {
+            NodeName("alice".to_string())
+        }
+        pub fn bob() -> Self {
+            NodeName("bob".to_string())
+        }
+        pub fn eve() -> Self {
+            NodeName("eve".to_string())
+        }
+    }
+
     #[allow(dead_code)]
     impl AddedNodeEvent {
         pub fn alice() -> Self {
@@ -460,7 +472,7 @@ mod tests {
                 node_id: NodeId(1),
                 details: {
                     let mut details = NodeDetails::default();
-                    details.name = NodeName("Alice".to_string());
+                    details.name = NodeName::alice();
                     details
                 },
                 stats: Default::default(),
@@ -476,7 +488,7 @@ mod tests {
                 node_id: NodeId(1),
                 details: {
                     let mut details = NodeDetails::default();
-                    details.name = NodeName("Bob".to_string());
+                    details.name = NodeName::bob();
                     details
                 },
                 stats: Default::default(),
@@ -492,7 +504,7 @@ mod tests {
                 node_id: NodeId(1),
                 details: {
                     let mut details = NodeDetails::default();
-                    details.name = NodeName("Eve".to_string());
+                    details.name = NodeName::eve();
                     details
                 },
                 stats: Default::default(),

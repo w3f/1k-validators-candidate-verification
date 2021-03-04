@@ -105,7 +105,7 @@ impl CandidateState {
 pub struct Timetable {
     node_name: NodeName,
     last_event: LogTimestamp,
-    offline_counter: Option<i64>,
+    offline_counter: i64,
     checkpoint: Option<LogTimestamp>,
     start_period: Option<LogTimestamp>,
 }
@@ -138,7 +138,11 @@ impl MongoClient {
             )),
         }
     }
-    pub fn get_time_table_store(&self, config: TimetableStoreConfig, network: &Network) -> TimetableStore {
+    pub fn get_time_table_store(
+        &self,
+        config: TimetableStoreConfig,
+        network: &Network,
+    ) -> TimetableStore {
         TimetableStore {
             coll: self.db.collection(&format!(
                 "{}_{}",
@@ -286,6 +290,7 @@ impl TimetableStore {
                     },
                     "$setOnInsert": {
                         "start_period": now.to_bson()?,
+                        "offline_counter": 0,
                     }
                 },
                 Some({
@@ -298,7 +303,7 @@ impl TimetableStore {
 
         Ok(())
     }
-    pub async fn detect_downtime(&self, now: Option<LogTimestamp>) -> Result<()> {
+    pub async fn process_time_tables(&self, now: Option<LogTimestamp>) -> Result<()> {
         let now = now.unwrap_or(LogTimestamp::new());
         let threshold = now.as_secs() - self.config.threshold;
 
@@ -355,25 +360,27 @@ impl TimetableStore {
 
         Ok(())
     }
-    pub async fn has_downtime(&self, candidate: &Candidate) -> Result<bool> {
-        if self
+    pub async fn has_downtime(&self, candidate: &Candidate) -> Result<Option<bool>> {
+        if let Some(doc) = self
             .coll
             .find_one(
                 doc! {
                     "node_name": candidate.node_name().to_bson()?,
-                    "offline_counter": {
-                        "$gt": self.config.max_downtime.to_bson()?,
-                    }
                 },
                 None,
             )
             .await?
-            .is_some()
         {
-            return Ok(true);
-        }
+            let timetable: Timetable = from_document(doc)?;
 
-        Ok(false)
+            if timetable.offline_counter > self.config.max_downtime {
+                Ok(Some(true))
+            } else {
+                Ok(Some(false))
+            }
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -851,5 +858,23 @@ mod tests {
         assert!(!is_online);
 
         client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn track_event_downtime() {
+        let config = TimetableStoreConfig {
+            whitelist: vec![NodeName::alice(), NodeName::bob()]
+                .into_iter()
+                .collect(),
+            threshold: 5,
+            max_downtime: 20,
+            monitoring_period: 100,
+        };
+
+        // Create client.
+        let client = MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime")
+            .await
+            .unwrap()
+            .get_time_table_store(config, &Network::Polkadot);
     }
 }
