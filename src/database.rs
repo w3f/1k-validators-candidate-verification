@@ -86,7 +86,7 @@ pub struct EventLog<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CandidateState {
     pub candidate: Candidate,
-    pub last_report_timestamp: LogTimestamp,
+    pub last_report_timestamp: Option<LogTimestamp>,
     pub judgement_reports: Vec<EventLog<RequirementsJudgementReport>>,
 }
 
@@ -94,7 +94,7 @@ impl CandidateState {
     pub fn new(candidate: Candidate) -> Self {
         CandidateState {
             candidate: candidate,
-            last_report_timestamp: LogTimestamp::new(),
+            last_report_timestamp: None,
             judgement_reports: vec![],
         }
     }
@@ -168,33 +168,11 @@ pub struct CandidateStateStore {
 }
 
 impl CandidateStateStore {
-    // TODO: Is this necessary?
-    async fn insert_candidate_state(&self, candidate: &Candidate) -> Result<()> {
-        self.coll
-            .update_one(
-                doc! {
-                    "candidate": candidate.to_bson()?,
-                },
-                doc! {
-                    "$setOnInsert": CandidateState::new(candidate.clone()).to_bson()?,
-                },
-                Some({
-                    let mut options = UpdateOptions::default();
-                    options.upsert = Some(true);
-                    options
-                }),
-            )
-            .await?;
-
-        Ok(())
-    }
     pub async fn store_requirements_report(
         &self,
         candidate: &Candidate,
         report: RequirementsJudgementReport,
     ) -> Result<()> {
-        self.insert_candidate_state(candidate).await?;
-
         self.coll
             .update_one(
                 doc! {
@@ -211,7 +189,11 @@ impl CandidateStateStore {
                         }.to_bson()?,
                     }
                 },
-                None,
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
             )
             .await?;
 
