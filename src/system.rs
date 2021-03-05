@@ -1,4 +1,4 @@
-use crate::database::{CandidateState, MongoClient};
+use crate::database::{CandidateState, MongoClient, TimetableStoreConfig};
 use crate::events::{NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
@@ -9,6 +9,7 @@ use tokio::time::{self, Duration};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
+const DOWNTIME_PROCESSOR_TIMEOUT: u64 = 60;
 const UNEXPECTED_EXIT_TIMEOUT: u64 = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
@@ -43,14 +44,24 @@ pub struct TelemetryWatcherConfig {
     pub db_name: String,
     pub telemetry_host: String,
     pub network: Network,
+    pub store_behavior: StoreBehavior,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(tag = "type", content = "config", rename_all = "snake_case")]
+pub enum StoreBehavior {
+    Store,
+    Track(TimetableStoreConfig),
 }
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
     async fn local(config: &TelemetryWatcherConfig) -> Result<()> {
         info!("Opening MongoDB client to database {}", &config.db_name);
-        let client = MongoClient::new(&config.db_uri, &config.db_name)
-            .await?
-            .get_telemetry_event_store(&config.network);
+        let client = MongoClient::new(&config.db_uri, &config.db_name).await?;
+
+        let store = client.get_telemetry_event_store(&config.network);
+        let mut tracker =
+            client.get_time_table_store(TimetableStoreConfig::dummy(), &config.network);
 
         info!(
             "Connecting to telemetry server {} ({})",
@@ -77,9 +88,31 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 )
             })?;
 
-        info!("Starting event loop ({})", config.network.as_ref());
+        match &config.store_behavior {
+            StoreBehavior::Track(track_config) => {
+                info!(
+                    "Starting downtime processing service ({})",
+                    config.network.as_ref()
+                );
+                tracker = client.get_time_table_store(track_config.clone(), &config.network);
+                let processor = tracker.clone();
+                tokio::spawn(async move {
+                    loop {
+                        if let Err(err) = processor.process_time_tables().await {
+                            error!("Exiting downtime processing service: {:?}", err);
+                            break;
+                        }
 
-        let store = client;
+                        time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;
+                    }
+                });
+
+                // TODO: If the downtime processor exists, the full application should exit.
+            }
+            _ => {}
+        }
+
+        info!("Starting event loop ({})", config.network.as_ref());
 
         while let Some(msg) = stream.next().await {
             match msg? {
@@ -93,7 +126,10 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                                 event.event_name(),
                             );
 
-                            store.store_event(event).await?;
+                            match config.store_behavior {
+                                StoreBehavior::Store => store.store_event(event).await?,
+                                StoreBehavior::Track(_) => tracker.track_event(event).await?,
+                            }
                         }
                     } else {
                         error!("Failed to deserialize telemetry event");
@@ -221,63 +257,80 @@ pub async fn run_requirements_proceeding(
     Ok(())
 }
 
-#[tokio::test]
-#[ignore]
-async fn telemetry() {
-    let (mut stream, _) = connect_async("wss://telemetry-backend.w3f.community/feed")
-        .await
-        .unwrap();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // Subscribe to specified network.
-    stream
-        .send(Message::text(format!(
-            "subscribe:{}",
-            Network::Polkadot.as_ref()
-        )))
-        .await
-        .unwrap();
-
-    while let Some(msg) = stream.next().await {
-        match msg.unwrap() {
-            Message::Binary(content) => {
-                if let Ok(events) = TelemetryEvent::from_json(&content) {
-                    for event in events {
-                        println!("\n\n{}", serde_json::to_string(&event).unwrap());
-                    }
-                } else {
-                    error!("Failed to deserialize telemetry event");
-                }
-            }
-            _ => {}
+    impl Candidate {
+        pub fn alice() -> Self {
+            Candidate::new("".to_string(), NodeName::alice(), Network::Polkadot)
+        }
+        pub fn bob() -> Self {
+            Candidate::new("".to_string(), NodeName::bob(), Network::Polkadot)
+        }
+        pub fn eve() -> Self {
+            Candidate::new("".to_string(), NodeName::eve(), Network::Polkadot)
         }
     }
-}
 
-#[tokio::test]
-#[ignore]
-async fn requirements_proceeding() {
-    //env_logger::init();
+    #[tokio::test]
+    #[ignore]
+    async fn telemetry() {
+        let (mut stream, _) = connect_async("wss://telemetry-backend.w3f.community/feed")
+            .await
+            .unwrap();
 
-    let config = RequirementsProceedingConfig {
-        db_uri: "mongodb://localhost:27017/".to_string(),
-        db_name: "test_candidate_requirements".to_string(),
-        network: Network::Kusama,
-        rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
-        requirements_config: RequirementsConfig {
-            max_commission: 10,
-            min_bonded_amount: 10000,
-            node_activity_timespan: 0,
-            max_node_activity_diff: 0,
-        },
-    };
+        // Subscribe to specified network.
+        stream
+            .send(Message::text(format!(
+                "subscribe:{}",
+                Network::Polkadot.as_ref()
+            )))
+            .await
+            .unwrap();
 
-    let candidates = vec![Candidate::new(
-        "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
-        NodeName::new("Alice".to_string()),
-        Network::Kusama,
-    )];
+        while let Some(msg) = stream.next().await {
+            match msg.unwrap() {
+                Message::Binary(content) => {
+                    if let Ok(events) = TelemetryEvent::from_json(&content) {
+                        for event in events {
+                            println!("\n\n{}", serde_json::to_string(&event).unwrap());
+                        }
+                    } else {
+                        error!("Failed to deserialize telemetry event");
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 
-    run_requirements_proceeding(config, candidates)
-        .await
-        .unwrap();
+    #[tokio::test]
+    #[ignore]
+    async fn requirements_proceeding() {
+        //env_logger::init();
+
+        let config = RequirementsProceedingConfig {
+            db_uri: "mongodb://localhost:27017/".to_string(),
+            db_name: "test_candidate_requirements".to_string(),
+            network: Network::Kusama,
+            rpc_hostname: "wss://kusama-rpc.polkadot.io".to_string(),
+            requirements_config: RequirementsConfig {
+                max_commission: 10,
+                min_bonded_amount: 10000,
+                node_activity_timespan: 0,
+                max_node_activity_diff: 0,
+            },
+        };
+
+        let candidates = vec![Candidate::new(
+            "FyRaMYvPqpNGq6PFGCcUWcJJWKgEz29ZFbdsnoNAczC2wJZ".to_string(),
+            NodeName::new("Alice".to_string()),
+            Network::Kusama,
+        )];
+
+        run_requirements_proceeding(config, candidates)
+            .await
+            .unwrap();
+    }
 }

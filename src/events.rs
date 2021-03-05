@@ -403,20 +403,19 @@ mod tests {
     impl HardwareEvent {
         pub fn alice() -> Self {
             HardwareEvent {
-                // TODO: Call NodeId::alice().
-                node_id: NodeId(1),
+                node_id: NodeId::alice(),
                 hardware: Default::default(),
             }
         }
         pub fn bob() -> Self {
             HardwareEvent {
-                node_id: NodeId(2),
+                node_id: NodeId::bob(),
                 hardware: Default::default(),
             }
         }
         pub fn eve() -> Self {
             HardwareEvent {
-                node_id: NodeId(3),
+                node_id: NodeId::eve(),
                 hardware: Default::default(),
             }
         }
@@ -426,21 +425,33 @@ mod tests {
     impl NodeStatsEvent {
         pub fn alice() -> Self {
             NodeStatsEvent {
-                node_id: NodeId(1),
+                node_id: NodeId::alice(),
                 stats: Default::default(),
             }
         }
         pub fn bob() -> Self {
             NodeStatsEvent {
-                node_id: NodeId(2),
+                node_id: NodeId::bob(),
                 stats: Default::default(),
             }
         }
         pub fn eve() -> Self {
             NodeStatsEvent {
-                node_id: NodeId(3),
+                node_id: NodeId::eve(),
                 stats: Default::default(),
             }
+        }
+    }
+
+    impl NodeName {
+        pub fn alice() -> Self {
+            NodeName("alice".to_string())
+        }
+        pub fn bob() -> Self {
+            NodeName("bob".to_string())
+        }
+        pub fn eve() -> Self {
+            NodeName("eve".to_string())
         }
     }
 
@@ -448,10 +459,10 @@ mod tests {
     impl AddedNodeEvent {
         pub fn alice() -> Self {
             AddedNodeEvent {
-                node_id: NodeId(1),
+                node_id: NodeId::alice(),
                 details: {
                     let mut details = NodeDetails::default();
-                    details.name = NodeName("Alice".to_string());
+                    details.name = NodeName::alice();
                     details
                 },
                 stats: Default::default(),
@@ -464,10 +475,10 @@ mod tests {
         }
         pub fn bob() -> Self {
             AddedNodeEvent {
-                node_id: NodeId(1),
+                node_id: NodeId::bob(),
                 details: {
                     let mut details = NodeDetails::default();
-                    details.name = NodeName("Bob".to_string());
+                    details.name = NodeName::bob();
                     details
                 },
                 stats: Default::default(),
@@ -480,10 +491,10 @@ mod tests {
         }
         pub fn eve() -> Self {
             AddedNodeEvent {
-                node_id: NodeId(1),
+                node_id: NodeId::eve(),
                 details: {
                     let mut details = NodeDetails::default();
-                    details.name = NodeName("Eve".to_string());
+                    details.name = NodeName::eve();
                     details
                 },
                 stats: Default::default(),

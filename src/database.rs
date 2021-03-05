@@ -8,17 +8,19 @@ use bson::{from_document, Document};
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ops::{Add, Sub};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_states";
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
+const TIMETABLE_STORE_COLLECTION: &'static str = "time_tables";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredStash;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredController;
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize)]
 pub struct LogTimestamp(i64);
 
 impl LogTimestamp {
@@ -30,8 +32,29 @@ impl LogTimestamp {
                 .as_secs() as i64,
         )
     }
+    #[cfg(test)]
+    /// Easier for debugging.
+    pub fn zero() -> Self {
+        LogTimestamp(0)
+    }
     pub fn as_secs(&self) -> i64 {
         self.0
+    }
+}
+
+impl Add for LogTimestamp {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        LogTimestamp(self.0 + other.0)
+    }
+}
+
+impl Sub for LogTimestamp {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        LogTimestamp(self.0 - other.0)
     }
 }
 
@@ -41,21 +64,10 @@ pub struct NodeActivity {
     pub node_name: Option<NodeName>,
     pub stash: Option<RegisteredStash>,
     pub controller: Option<RegisteredController>,
-    pub last_event_timestamp: LogTimestamp,
+    #[serde(skip_serializing)]
+    pub last_event_timestamp: Option<LogTimestamp>,
+    #[serde(skip_serializing)]
     pub events: Vec<EventLog<TelemetryEvent>>,
-}
-
-impl NodeActivity {
-    pub fn new(id: NodeId, name: Option<NodeName>) -> Self {
-        NodeActivity {
-            node_id: id,
-            node_name: name,
-            stash: None,
-            controller: None,
-            last_event_timestamp: LogTimestamp::new(),
-            events: vec![],
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -67,7 +79,7 @@ pub struct EventLog<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CandidateState {
     pub candidate: Candidate,
-    pub last_report_timestamp: LogTimestamp,
+    pub last_report_timestamp: Option<LogTimestamp>,
     pub judgement_reports: Vec<EventLog<RequirementsJudgementReport>>,
 }
 
@@ -75,10 +87,19 @@ impl CandidateState {
     pub fn new(candidate: Candidate) -> Self {
         CandidateState {
             candidate: candidate,
-            last_report_timestamp: LogTimestamp::new(),
+            last_report_timestamp: None,
             judgement_reports: vec![],
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Timetable {
+    node_name: NodeName,
+    last_event: LogTimestamp,
+    downtime: i64,
+    checkpoint: Option<LogTimestamp>,
+    start_period: LogTimestamp,
 }
 
 pub struct MongoClient {
@@ -109,6 +130,21 @@ impl MongoClient {
             )),
         }
     }
+    pub fn get_time_table_store(
+        &self,
+        config: TimetableStoreConfig,
+        network: &Network,
+    ) -> TimetableStore {
+        TimetableStore {
+            coll: self.db.collection(&format!(
+                "{}_{}",
+                TIMETABLE_STORE_COLLECTION,
+                network.as_ref()
+            )),
+            name_lookup: HashMap::new(),
+            config: config,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -117,33 +153,11 @@ pub struct CandidateStateStore {
 }
 
 impl CandidateStateStore {
-    // TODO: Is this necessary?
-    async fn insert_candidate_state(&self, candidate: &Candidate) -> Result<()> {
-        self.coll
-            .update_one(
-                doc! {
-                    "candidate": candidate.to_bson()?,
-                },
-                doc! {
-                    "$setOnInsert": CandidateState::new(candidate.clone()).to_bson()?,
-                },
-                Some({
-                    let mut options = UpdateOptions::default();
-                    options.upsert = Some(true);
-                    options
-                }),
-            )
-            .await?;
-
-        Ok(())
-    }
     pub async fn store_requirements_report(
         &self,
         candidate: &Candidate,
         report: RequirementsJudgementReport,
     ) -> Result<()> {
-        self.insert_candidate_state(candidate).await?;
-
         self.coll
             .update_one(
                 doc! {
@@ -160,7 +174,11 @@ impl CandidateStateStore {
                         }.to_bson()?,
                     }
                 },
-                None,
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
             )
             .await?;
 
@@ -188,25 +206,105 @@ impl CandidateStateStore {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct TelemetryEventStore {
-    coll: Collection,
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TimetableStoreConfig {
+    whitelist: HashSet<NodeName>,
+    threshold: i64,
+    max_downtime: i64,
+    monitoring_period: i64,
+    #[serde(skip)]
+    is_dummy: bool,
 }
 
-impl TelemetryEventStore {
-    #[cfg(test)]
-    async fn drop(&self) {
-        self.coll.drop(None).await.unwrap();
+impl TimetableStoreConfig {
+    pub fn dummy() -> Self {
+        TimetableStoreConfig {
+            whitelist: HashSet::new(),
+            threshold: 0,
+            max_downtime: 0,
+            monitoring_period: 0,
+            is_dummy: true,
+        }
     }
-    // TODO: Is this necessary?
-    async fn insert_node_info(&self, node_id: &NodeId, node_name: Option<&NodeName>) -> Result<()> {
+}
+
+#[derive(Debug, Clone)]
+pub struct TimetableStore {
+    coll: Collection,
+    name_lookup: HashMap<NodeId, NodeName>,
+    config: TimetableStoreConfig,
+}
+
+// TODO: Handle dummy
+impl TimetableStore {
+    /// Private method to set timestamp manually. Required by certain tests.
+    pub async fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
+        self.track_event_tmsp(event, None).await
+    }
+    async fn track_event_tmsp(
+        &mut self,
+        event: TelemetryEvent,
+        now: Option<LogTimestamp>,
+    ) -> Result<()> {
+        let now = now.unwrap_or(LogTimestamp::new());
+        let node_id = event.node_id();
+
+        let node_name = match event {
+            // `AddedNode` events need special treatment since only those
+            // specify a node name.
+            TelemetryEvent::AddedNode(ref event) => {
+                let node_name = &event.details.name;
+
+                // Only process whitelisted node names.
+                if !self.config.whitelist.contains(&node_name) {
+                    return Ok(());
+                }
+
+                // Find existing node name duplicates which will be pruned. This
+                // might be slightly time consuming, but `AddedNode` events are
+                // primarily generated on initial connection and rarely occur
+                // later on.
+                let mut to_delete = vec![];
+                for (curr_node_id, curr_node_name) in &self.name_lookup {
+                    if curr_node_name == node_name {
+                        to_delete.push(curr_node_id.clone());
+                    }
+                }
+
+                for node_id in &to_delete {
+                    self.name_lookup.remove(node_id);
+                }
+
+                // Update the node Id with the newest, corresponding node name.
+                self.name_lookup.insert(node_id.clone(), node_name.clone());
+
+                node_name
+            }
+            _ => {
+                // Lookup node name or whether to ignore the event.
+                if let Some(node_name) = self.name_lookup.get(node_id) {
+                    node_name
+                } else {
+                    return Ok(());
+                }
+            }
+        };
+
+        // Update last event timestamp.
         self.coll
             .update_one(
                 doc! {
-                    "node_id": node_id.to_bson()?,
+                    "node_name": node_name.to_bson()?,
                 },
                 doc! {
-                    "$setOnInsert": NodeActivity::new(node_id.clone(), node_name.map(|n| n.clone())).to_bson()?,
+                    "$set": {
+                        "last_event": now.to_bson()?,
+                        "checkpoint": null,
+                    },
+                    "$setOnInsert": {
+                        "start_period": now.to_bson()?,
+                        "downtime": 0,
+                    }
                 },
                 Some({
                     let mut options = UpdateOptions::default();
@@ -218,6 +316,121 @@ impl TelemetryEventStore {
 
         Ok(())
     }
+    // TODO: Return metadata and write individual test for it.
+    pub async fn process_time_tables(&self) -> Result<()> {
+        self.process_time_tables_tmsp(None).await
+    }
+    /// Private method to set timestamp manually. Required by certain tests.
+    async fn process_time_tables_tmsp(&self, now: Option<LogTimestamp>) -> Result<()> {
+        let now = now.unwrap_or(LogTimestamp::new());
+        let threshold = now.as_secs() - self.config.threshold;
+
+        let mut cursor = self
+            .coll
+            .find(
+                doc! {
+                    "last_event": {
+                        "$lt": threshold.to_bson()?,
+                    }
+                },
+                None,
+            )
+            .await?;
+
+        while let Some(doc) = cursor.next().await {
+            let timetable: Timetable = from_document(doc?)?;
+
+            // Determine the additional downtime from the last checkpoint until now.
+            let add_downtime = if let Some(checkpoint) = timetable.checkpoint {
+                now - checkpoint
+            } else {
+                now - timetable.last_event
+            };
+
+            // Check if the monitoring period has completed and reset, if appropriate.
+            let update = if timetable.start_period.as_secs()
+                <= now.as_secs() - self.config.monitoring_period
+            {
+                doc! {
+                    "$set": {
+                        "last_event": now.to_bson()?,
+                        // Start from zero, but adding the new downtime.
+                        "downtime": add_downtime.to_bson()?,
+                        "checkpoint": now.to_bson()?,
+                        "start_period": now.to_bson()?,
+                    }
+                }
+            } else {
+                // Set the current checkpoint at which the downtime was counted.
+                doc! {
+                    "$set": {
+                        "checkpoint": now.to_bson()?,
+                    },
+                    "$inc": {
+                        "downtime": add_downtime.to_bson()?,
+                    }
+                }
+            };
+
+            // Insert state into storage.
+            self.coll
+                .update_one(
+                    doc! {
+                        "node_name": timetable.node_name.to_bson()?,
+                    },
+                    update,
+                    None,
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
+    /// Checks whether the candidate has any downtime. Returns a tuple (if the
+    /// candidate could be found) where the `bool` indicates whether the
+    /// candidate should be punished (exceeds the maximum downtime) and the
+    /// `i64` indicates the downtime in seconds.
+    #[allow(dead_code)]
+    pub async fn has_downtime_violation(
+        &self,
+        candidate: &Candidate,
+    ) -> Result<Option<(bool, i64)>> {
+        if let Some(doc) = self
+            .coll
+            .find_one(
+                doc! {
+                    "node_name": candidate.node_name().to_bson()?,
+                },
+                None,
+            )
+            .await?
+        {
+            let downtime = from_document::<Timetable>(doc)?.downtime;
+            if downtime > self.config.max_downtime {
+                Ok(Some((true, downtime)))
+            } else {
+                Ok(Some((false, downtime)))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+    #[cfg(test)]
+    async fn drop(&self) {
+        self.coll.drop(None).await.unwrap();
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TelemetryEventStore {
+    coll: Collection,
+}
+
+impl TelemetryEventStore {
+    #[cfg(test)]
+    async fn drop(&self) {
+        self.coll.drop(None).await.unwrap();
+    }
     pub async fn store_event(&self, event: TelemetryEvent) -> Result<()> {
         self.store_event_with_timestamp(event, None).await
     }
@@ -228,10 +441,7 @@ impl TelemetryEventStore {
         timestamp: Option<LogTimestamp>,
     ) -> Result<()> {
         let node_id = event.node_id();
-        let node_name = event.node_name();
         let timestamp = timestamp.unwrap_or(LogTimestamp::new());
-
-        self.insert_node_info(node_id, node_name).await?;
 
         self.coll
             .update_one(
@@ -249,7 +459,11 @@ impl TelemetryEventStore {
                         }.to_bson()?
                     }
                 },
-                None,
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
             )
             .await?;
 
@@ -620,7 +834,7 @@ mod tests {
             (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 40),
         ];
 
-        let starting = LogTimestamp::new().as_secs();
+        let starting = LogTimestamp::zero().as_secs();
         for (message, interval) in &messages {
             client
                 .store_event_with_timestamp(
@@ -661,7 +875,7 @@ mod tests {
             (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 60),
         ];
 
-        let starting = LogTimestamp::new().as_secs();
+        let starting = LogTimestamp::zero().as_secs();
         for (message, interval) in &messages {
             client
                 .store_event_with_timestamp(
@@ -678,6 +892,345 @@ mod tests {
             .unwrap();
 
         assert!(!is_online);
+
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn track_event_only_uptime() {
+        let config = TimetableStoreConfig {
+            whitelist: vec![NodeName::alice(), NodeName::bob()]
+                .into_iter()
+                .collect(),
+            threshold: 12,
+            max_downtime: 50,
+            monitoring_period: 100,
+            is_dummy: false,
+        };
+
+        // Create client.
+        let mut client =
+            MongoClient::new("mongodb://localhost:27017/", "test_track_event_only_uptime")
+                .await
+                .unwrap()
+                .get_time_table_store(config, &Network::Polkadot);
+
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+        let eve = Candidate::eve();
+
+        // Ignored events (node name not found).
+        let events = [
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::eve()), 0),
+        ];
+
+        let starting = LogTimestamp::zero().as_secs();
+        for (event, interval) in &events {
+            client
+                .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+
+            client
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        // Candidates could not be found (`AddedNode` events must be tracked first).
+        assert!(client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(client.has_downtime_violation(&bob).await.unwrap().is_none());
+        assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
+
+        // Valid events (node name found)
+        let events = [
+            // Alice
+            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 20),
+            // Bob
+            (TelemetryEvent::AddedNode(AddedNodeEvent::bob()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::bob()), 20),
+            // Eve
+            (TelemetryEvent::AddedNode(AddedNodeEvent::eve()), 0),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::eve()), 10),
+            (TelemetryEvent::NodeStats(NodeStatsEvent::eve()), 20),
+        ];
+
+        for (event, interval) in &events {
+            client
+                .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+
+            client
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(punish, false);
+        assert_eq!(downtime, 0);
+
+        let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
+        assert_eq!(punish, false);
+        assert_eq!(downtime, 0);
+
+        // Eve is not on the whitelist.
+        assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
+
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn track_event_downtime_no_punish() {
+        let config = TimetableStoreConfig {
+            whitelist: vec![NodeName::alice(), NodeName::bob()]
+                .into_iter()
+                .collect(),
+            threshold: 12,
+            max_downtime: 50,
+            monitoring_period: 100,
+            is_dummy: false,
+        };
+
+        // Create client.
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_track_event_downtime_no_punish",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
+
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+
+        // Valid events (node name found)
+        let events = [
+            // Alice
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 0),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 10),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 20),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 30),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 40),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 50),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 60),
+            // Bob (downtimes, exceeds thresholds).
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 0),
+            (None, 10),
+            (None, 20), // Downtime: +20 secs.
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 30),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 40),
+            (None, 50),
+            (None, 60), // Downtime: +20 secs.
+        ];
+
+        let starting = LogTimestamp::zero().as_secs();
+        for (event, interval) in &events {
+            if let Some(event) = event {
+                client
+                    .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
+                    .await
+                    .unwrap();
+            }
+
+            client
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(punish, false);
+        assert_eq!(downtime, 0);
+
+        let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
+        assert_eq!(punish, false); // Downtime, but does not exceed `max_downtime`.
+        assert_eq!(downtime, 40);
+
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn track_event_downtime_do_punish() {
+        let config = TimetableStoreConfig {
+            whitelist: vec![NodeName::alice(), NodeName::bob()]
+                .into_iter()
+                .collect(),
+            threshold: 12,
+            max_downtime: 50,
+            monitoring_period: 100,
+            is_dummy: false,
+        };
+
+        // Create client.
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_track_event_downtime_do_punish",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
+
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+
+        // Valid events (node name found)
+        let events = [
+            // Alice
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 0),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 10),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 20),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 30),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 40),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 50),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 60),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 70),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 80),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 90),
+            // Bob (downtimes, exceeds thresholds).
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 0),
+            (None, 10),
+            (None, 20), // Downtime: +20 secs.
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 30),
+            (None, 40),
+            (None, 50), // Downtime: +20 secs.
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 60),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 70),
+            (None, 80),
+            (None, 90), // Downtime: +20 secs (exceeds  `max_downtime` of 50)
+        ];
+
+        let starting = LogTimestamp::zero().as_secs();
+        for (event, interval) in &events {
+            if let Some(event) = event {
+                client
+                    .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
+                    .await
+                    .unwrap();
+            }
+
+            client
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(punish, false);
+        assert_eq!(downtime, 0);
+
+        let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
+        assert_eq!(punish, true); // PUNISH.
+        assert_eq!(downtime, 60);
+
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn track_event_downtime_reset_period() {
+        let config = TimetableStoreConfig {
+            whitelist: vec![NodeName::alice(), NodeName::bob()]
+                .into_iter()
+                .collect(),
+            threshold: 22,
+            max_downtime: 50,
+            monitoring_period: 100,
+            is_dummy: false,
+        };
+
+        // Create client.
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_track_event_downtime_reset_period",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
+
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+
+        // Valid events (node name found)
+        #[rustfmt::skip]
+        let events = [
+            // Alice
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 0),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 20),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 40),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 60),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 80),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 100),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 120),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 140),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 160),
+            // Bob (downtimes, exceeds thresholds).
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 0),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 20),
+            (None, 40),
+            (None, 60), // Downtime: +40 secs.
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 80),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 100), // Monitoring period resets here.
+            (None, 120),
+            (None, 140), // Downtime: +40 secs.
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 160),
+        ];
+
+        let starting = LogTimestamp::zero().as_secs();
+        for (event, interval) in &events {
+            if let Some(event) = event {
+                client
+                    .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
+                    .await
+                    .unwrap();
+            }
+
+            client
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(punish, false);
+        assert_eq!(downtime, 0);
+
+        let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
+        assert_eq!(punish, false); // No punishment.
+        assert_eq!(downtime, 40);
 
         client.drop().await;
     }
