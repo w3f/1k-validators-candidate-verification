@@ -155,16 +155,18 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 Message::Binary(content) => {
                     if let Ok(events) = TelemetryEvent::from_json(&content) {
                         for event in events {
-                            debug!(
-                                "NodeId {} (name \"{}\"): new '{}' event ({})",
-                                event.node_id().as_num(),
-                                event.node_name().map(|n| n.as_str()).unwrap_or("N/A"),
-                                event.event_name(),
-                                config.network.as_ref(),
-                            );
-
                             match config.store_behavior {
-                                StoreBehavior::Store => store.store_event(event).await?,
+                                StoreBehavior::Store => {
+                                    debug!(
+                                        "NodeId {} (name \"{}\"): new '{}' event ({})",
+                                        event.node_id().as_num(),
+                                        event.node_name().map(|n| n.as_str()).unwrap_or("N/A"),
+                                        event.event_name(),
+                                        config.network.as_ref(),
+                                    );
+
+                                    store.store_event(event).await?
+                                }
                                 StoreBehavior::Counter(_) => tracker.track_event(event).await?,
                             }
                         }

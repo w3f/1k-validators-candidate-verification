@@ -38,14 +38,14 @@ struct TelemetryTrackerConfig {
 #[serde(tag = "type", content = "config", rename_all = "snake_case")]
 enum RawStoreBehavior {
     Store,
-    Counter(RawCounterConfig),
+    DowntimeCounter(RawCounterConfig),
 }
 
 impl RawStoreBehavior {
     fn into_store_behavior(self, network: Network) -> Result<StoreBehavior> {
         Ok(match self {
             RawStoreBehavior::Store => StoreBehavior::Store,
-            RawStoreBehavior::Counter(config) => StoreBehavior::Counter({
+            RawStoreBehavior::DowntimeCounter(config) => StoreBehavior::Counter({
                 TimetableStoreConfig {
                     whitelist: read_candidates(&config.candidate_file, network)?
                         .into_iter()

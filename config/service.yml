@@ -5,4 +5,13 @@ services:
       telemetry_host: "wss://telemetry-backend.w3f.community/feed"
       network: "polkadot"
       store_behavior:
-        type: store
+        type: downtime_counter
+        config:
+          # 5 minutes of absence before it starts increasing the downtime counter
+          threshold: 60
+          # 1 hour of allowed downtime per monitoring period.
+          max_downtime: 3600
+          # 1 week monitoring period. Downtime counter resets after that.
+          monitoring_period: 604800
+          # Monitoring whitelist
+          candidate_file: "config/polkadot_candidates.yml"
