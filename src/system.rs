@@ -48,7 +48,7 @@ pub struct TelemetryWatcherConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(tag = "type", content = "content", rename_all = "snake_case")]
+#[serde(tag = "type", content = "config", rename_all = "snake_case")]
 pub enum StoreBehavior {
     Store,
     Track(TimetableStoreConfig),
