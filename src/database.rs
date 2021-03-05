@@ -4,7 +4,7 @@ use crate::{
     system::{Candidate, Network},
 };
 use crate::{Result, ToBson};
-use bson::{from_document, Document};
+use bson::from_document;
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
@@ -580,109 +580,12 @@ impl TelemetryEventStore {
 
         Ok(m_version)
     }
-    // TODO: Required?
-    #[allow(unused)]
-    pub async fn get_observed_names(&self) -> Result<Vec<NodeName>> {
-        let mut cursor = self
-            .coll
-            .find(
-                doc! {
-                    "node_name": {
-                        "$exists": true,
-                    },
-                    "node_name": 1
-                },
-                None,
-            )
-            .await?;
-
-        let mut names = vec![];
-        while let Some(doc) = cursor.next().await {
-            names.push(from_document(doc?)?);
-        }
-
-        Ok(names)
-    }
-    pub async fn verify_node_uptime(
-        &self,
-        node_id: &NodeId,
-        last: u64,
-        max_diff: u64,
-    ) -> Result<bool> {
-        let events_after = LogTimestamp::new().as_secs() - last as i64;
-
-        let cursor = self
-            .coll
-            .aggregate(
-                vec![
-                    doc! {
-                        "$match": {
-                            "events.timestamp": {
-                                "$gt": events_after.to_bson()?,
-                            },
-                            "events.event.content.node_id": node_id.to_bson()?,
-                        }
-                    },
-                    doc! {
-                        "$addFields": {
-                            "min": {
-                                "$min": "$events.timestamp",
-                            },
-                            "max": {
-                                "$max": "$events.timestamp",
-                            },
-                            "total": {
-                                "$size": "$events",
-                            }
-                        }
-                    },
-                    doc! {
-                        "$project": {
-                            "_id": 0,
-                            "min": 1,
-                            "max": 1,
-                            "total": 1,
-                        }
-                    },
-                ],
-                None,
-            )
-            .await?;
-
-        // Process BSON results
-        let mut docs = cursor
-            .collect::<Vec<std::result::Result<Document, _>>>()
-            .await;
-
-        if docs.len() == 0 || docs.len() > 1 {
-            return Err(anyhow!("invalid query result"));
-        }
-
-        let doc = docs.remove(0).map_err(|_err| anyhow!(""))?;
-
-        #[derive(Deserialize, Serialize)]
-        struct QueryResult {
-            min: i64,
-            max: i64,
-            total: i64,
-        }
-
-        // Verify uptime by checking whether the average gap sizes between
-        // events are below the specified time (`max_diff`).
-        let res: QueryResult = from_document(doc)?;
-
-        if (res.max - res.min) / (res.total.saturating_sub(1)) <= max_diff as i64 {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::{AddedNodeEvent, HardwareEvent, NodeId, NodeStatsEvent, TelemetryEvent};
+    use crate::events::{AddedNodeEvent, NodeId, NodeStatsEvent, TelemetryEvent};
     use crate::system::Network;
 
     #[tokio::test]
@@ -830,89 +733,6 @@ mod tests {
 
         let version = client.get_majority_client_version().await.unwrap().unwrap();
         assert_eq!(version, NodeVersion::from("2.0".to_string()));
-
-        client.drop().await;
-    }
-
-    #[tokio::test]
-    async fn verify_node_uptime_valid() {
-        // Create client.
-        let client = MongoClient::new(
-            "mongodb://localhost:27017/",
-            "test_verify_node_uptime_valid",
-        )
-        .await
-        .unwrap()
-        .get_telemetry_event_store(&Network::Polkadot);
-
-        client.drop().await;
-
-        let messages = [
-            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
-            (TelemetryEvent::Hardware(HardwareEvent::alice()), 10),
-            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 20),
-            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 30),
-            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 40),
-        ];
-
-        let starting = LogTimestamp::zero().as_secs();
-        for (message, interval) in &messages {
-            client
-                .store_event_with_timestamp(
-                    message.clone(),
-                    Some(LogTimestamp(starting + interval)),
-                )
-                .await
-                .unwrap();
-        }
-
-        let is_online = client
-            .verify_node_uptime(&NodeId::alice(), 1_000, 10)
-            .await
-            .unwrap();
-
-        assert!(is_online);
-        client.drop().await;
-    }
-
-    #[tokio::test]
-    async fn verify_node_uptime_invalid() {
-        // Create client.
-        let client = MongoClient::new(
-            "mongodb://localhost:27017/",
-            "test_verify_node_uptime_invalid",
-        )
-        .await
-        .unwrap()
-        .get_telemetry_event_store(&Network::Polkadot);
-
-        client.drop().await;
-
-        let messages = [
-            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 0),
-            (TelemetryEvent::Hardware(HardwareEvent::alice()), 10),
-            (TelemetryEvent::NodeStats(NodeStatsEvent::alice()), 40),
-            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 50),
-            (TelemetryEvent::AddedNode(AddedNodeEvent::alice()), 60),
-        ];
-
-        let starting = LogTimestamp::zero().as_secs();
-        for (message, interval) in &messages {
-            client
-                .store_event_with_timestamp(
-                    message.clone(),
-                    Some(LogTimestamp(starting + interval)),
-                )
-                .await
-                .unwrap();
-        }
-
-        let is_online = client
-            .verify_node_uptime(&NodeId::alice(), 1_000, 10)
-            .await
-            .unwrap();
-
-        assert!(!is_online);
 
         client.drop().await;
     }

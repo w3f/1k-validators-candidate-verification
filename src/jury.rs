@@ -252,24 +252,10 @@ where
             return Ok(());
         }
 
-        let mut is_compliant = false;
-
         // Check is node Id. As soon as one of those has the required uptime,
         // the candidate is marked as compliant.
-        for id in node_ids {
-            let is_ok = self
-                .telemetry_store
-                .verify_node_uptime(
-                    id,
-                    self.config.node_activity_timespan,
-                    self.config.max_node_activity_diff,
-                )
-                .await?;
-            if is_ok {
-                is_compliant = true;
-                break;
-            }
-        }
+        // TODO
+        let is_compliant = false;
 
         if is_compliant {
             self.judgments
