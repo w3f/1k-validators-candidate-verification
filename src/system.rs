@@ -1,5 +1,5 @@
-use crate::database::{CandidateState, LogTimestamp, MongoClient, TimetableStoreConfig};
-use crate::events::{NodeId, NodeName, TelemetryEvent};
+use crate::database::{CandidateState, MongoClient, TimetableStoreConfig};
+use crate::events::{NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};

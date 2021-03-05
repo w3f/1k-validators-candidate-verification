@@ -70,19 +70,6 @@ pub struct NodeActivity {
     pub events: Vec<EventLog<TelemetryEvent>>,
 }
 
-impl NodeActivity {
-    pub fn new(id: NodeId, name: Option<NodeName>) -> Self {
-        NodeActivity {
-            node_id: id,
-            node_name: name,
-            stash: None,
-            controller: None,
-            last_event_timestamp: None,
-            events: vec![],
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct EventLog<T> {
     pub timestamp: LogTimestamp,
@@ -403,6 +390,7 @@ impl TimetableStore {
     /// candidate could be found) where the `bool` indicates whether the
     /// candidate should be punished (exceeds the maximum downtime) and the
     /// `i64` indicates the downtime in seconds.
+    #[allow(dead_code)]
     pub async fn has_downtime_violation(
         &self,
         candidate: &Candidate,
@@ -453,7 +441,6 @@ impl TelemetryEventStore {
         timestamp: Option<LogTimestamp>,
     ) -> Result<()> {
         let node_id = event.node_id();
-        let node_name = event.node_name();
         let timestamp = timestamp.unwrap_or(LogTimestamp::new());
 
         self.coll
@@ -918,6 +905,7 @@ mod tests {
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
+            is_dummy: false,
         };
 
         // Create client.
@@ -1017,6 +1005,7 @@ mod tests {
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
+            is_dummy: false,
         };
 
         // Create client.
@@ -1092,6 +1081,7 @@ mod tests {
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
+            is_dummy: false,
         };
 
         // Create client.
@@ -1173,6 +1163,7 @@ mod tests {
             threshold: 22,
             max_downtime: 50,
             monitoring_period: 100,
+            is_dummy: false,
         };
 
         // Create client.
