@@ -117,13 +117,26 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
 
                 tokio::spawn(async move {
                     loop {
-                        if let Err(err) = processor.process_time_tables().await {
-                            error!(
-                                "Exiting downtime processing service: {:?} ({})",
-                                err,
-                                network.as_ref()
-                            );
-                            break;
+                        match processor.process_time_tables().await {
+                            Ok(metadata) => {
+                                for entry in metadata {
+                                    debug!("Detected downtime for '{}': added {} (total: {}, max allowed: {}, next reset: {})",
+                                        entry.node_name.as_str(),
+                                        entry.added_downtime,
+                                        entry.total_downtime,
+                                        entry.max_downtime,
+                                        entry.next_reset,
+                                    );
+                                }
+                            }
+                            Err(err) => {
+                                error!(
+                                    "Exiting downtime processing service: {:?} ({})",
+                                    err,
+                                    network.as_ref()
+                                );
+                                break;
+                            }
                         }
 
                         time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;

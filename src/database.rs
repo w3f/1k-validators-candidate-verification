@@ -228,6 +228,15 @@ impl TimetableStoreConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct ProcessingMetadata {
+    pub node_name: NodeName,
+    pub added_downtime: i64,
+    pub total_downtime: i64,
+    pub max_downtime: i64,
+    pub next_reset: i64,
+}
+
+#[derive(Debug, Clone)]
 pub struct TimetableStore {
     coll: Collection,
     name_lookup: HashMap<NodeId, NodeName>,
@@ -315,14 +324,18 @@ impl TimetableStore {
 
         Ok(())
     }
-    // TODO: Return metadata and write individual test for it.
-    pub async fn process_time_tables(&self) -> Result<()> {
+    // TODO: Individual test for metadata it.
+    pub async fn process_time_tables(&self) -> Result<Vec<ProcessingMetadata>> {
         self.process_time_tables_tmsp(None).await
     }
     /// Private method to set timestamp manually. Required by certain tests.
-    async fn process_time_tables_tmsp(&self, now: Option<LogTimestamp>) -> Result<()> {
+    async fn process_time_tables_tmsp(
+        &self,
+        now: Option<LogTimestamp>,
+    ) -> Result<Vec<ProcessingMetadata>> {
         let now = now.unwrap_or(LogTimestamp::new());
         let threshold = now.as_secs() - self.config.threshold;
+        let mut change_log: Vec<ProcessingMetadata> = vec![];
 
         let mut cursor = self
             .coll
@@ -371,6 +384,15 @@ impl TimetableStore {
                 }
             };
 
+            // Add metadata entry.
+            change_log.push(ProcessingMetadata {
+                node_name: timetable.node_name.clone(),
+                added_downtime: add_downtime.as_secs(),
+                total_downtime: timetable.downtime + add_downtime.as_secs(),
+                max_downtime: self.config.max_downtime,
+                next_reset: timetable.start_period.as_secs() + self.config.monitoring_period,
+            });
+
             // Insert state into storage.
             self.coll
                 .update_one(
@@ -383,7 +405,7 @@ impl TimetableStore {
                 .await?;
         }
 
-        Ok(())
+        Ok(change_log)
     }
     /// Checks whether the candidate has any downtime. Returns a tuple (if the
     /// candidate could be found) where the `bool` indicates whether the
