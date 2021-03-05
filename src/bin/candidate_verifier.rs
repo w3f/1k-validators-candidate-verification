@@ -7,7 +7,8 @@ extern crate anyhow;
 
 use lib::{
     run_requirements_proceeding, run_telemetry_watcher, Candidate, Network, NodeName,
-    RequirementsConfig, RequirementsProceedingConfig, Result, TelemetryWatcherConfig,
+    RequirementsConfig, RequirementsProceedingConfig, Result, StoreBehavior,
+    TelemetryWatcherConfig,
 };
 use std::fs::read_to_string;
 use tokio::time::{self, Duration};
@@ -29,6 +30,7 @@ pub struct ConfigWrapper<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct TelemetryTrackerConfig {
     telemetry_host: String,
+    store_behavior: StoreBehavior,
     networks: Vec<Network>,
 }
 
@@ -72,6 +74,7 @@ async fn main() -> Result<()> {
                 db_name: root_config.db_name.clone(),
                 telemetry_host: tracker_config.telemetry_host.clone(),
                 network: network,
+                store_behavior: tracker_config.store_behavior.clone(),
             };
 
             run_telemetry_watcher(specialized).await?;

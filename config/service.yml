@@ -4,6 +4,7 @@ telemetry_watcher:
   enabled: true
   config:
     telemetry_host: "wss://telemetry-backend.w3f.community/feed"
+    store_behavior: store
     networks:
       - "polkadot"
       - "kusama"

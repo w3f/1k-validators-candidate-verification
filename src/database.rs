@@ -219,21 +219,42 @@ impl CandidateStateStore {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TimetableStoreConfig {
     whitelist: HashSet<NodeName>,
     threshold: i64,
     max_downtime: i64,
     monitoring_period: i64,
+    #[serde(skip)]
+    is_dummy: bool,
 }
 
+impl TimetableStoreConfig {
+    pub fn dummy() -> Self {
+        TimetableStoreConfig {
+            whitelist: HashSet::new(),
+            threshold: 0,
+            max_downtime: 0,
+            monitoring_period: 0,
+            is_dummy: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct TimetableStore {
     coll: Collection,
     name_lookup: HashMap<NodeId, NodeName>,
     config: TimetableStoreConfig,
 }
 
+// TODO: Handle dummy
 impl TimetableStore {
-    pub async fn track_event(
+    /// Private method to set timestamp manually. Required by certain tests.
+    pub async fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
+        self.track_event_tmsp(event, None).await
+    }
+    async fn track_event_tmsp(
         &mut self,
         event: TelemetryEvent,
         now: Option<LogTimestamp>,
@@ -309,7 +330,11 @@ impl TimetableStore {
         Ok(())
     }
     // TODO: Return metadata and write individual test for it.
-    pub async fn process_time_tables(&self, now: Option<LogTimestamp>) -> Result<()> {
+    pub async fn process_time_tables(&self) -> Result<()> {
+        self.process_time_tables_tmsp(None).await
+    }
+    /// Private method to set timestamp manually. Required by certain tests.
+    async fn process_time_tables_tmsp(&self, now: Option<LogTimestamp>) -> Result<()> {
         let now = now.unwrap_or(LogTimestamp::new());
         let threshold = now.as_secs() - self.config.threshold;
 
@@ -918,12 +943,12 @@ mod tests {
         let starting = LogTimestamp::zero().as_secs();
         for (event, interval) in &events {
             client
-                .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
 
             client
-                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
         }
@@ -955,12 +980,12 @@ mod tests {
 
         for (event, interval) in &events {
             client
-                .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
 
             client
-                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
         }
@@ -1032,13 +1057,13 @@ mod tests {
         for (event, interval) in &events {
             if let Some(event) = event {
                 client
-                    .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                    .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
                     .await
                     .unwrap();
             }
 
             client
-                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
         }
@@ -1113,13 +1138,13 @@ mod tests {
         for (event, interval) in &events {
             if let Some(event) = event {
                 client
-                    .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                    .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
                     .await
                     .unwrap();
             }
 
             client
-                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
         }
@@ -1193,13 +1218,13 @@ mod tests {
         for (event, interval) in &events {
             if let Some(event) = event {
                 client
-                    .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                    .track_event_tmsp(event.clone(), Some(LogTimestamp(starting + interval)))
                     .await
                     .unwrap();
             }
 
             client
-                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .process_time_tables_tmsp(Some(LogTimestamp(starting + interval)))
                 .await
                 .unwrap();
         }

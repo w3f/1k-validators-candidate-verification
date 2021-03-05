@@ -1,4 +1,4 @@
-use crate::database::{CandidateState, LogTimestamp, MongoClient};
+use crate::database::{CandidateState, LogTimestamp, MongoClient, TimetableStoreConfig};
 use crate::events::{NodeId, NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
@@ -9,6 +9,7 @@ use tokio::time::{self, Duration};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
+const DOWNTIME_PROCESSOR_TIMEOUT: u64 = 60;
 const UNEXPECTED_EXIT_TIMEOUT: u64 = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
@@ -43,14 +44,24 @@ pub struct TelemetryWatcherConfig {
     pub db_name: String,
     pub telemetry_host: String,
     pub network: Network,
+    pub store_behavior: StoreBehavior,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(tag = "type", content = "content", rename_all = "snake_case")]
+pub enum StoreBehavior {
+    Store,
+    Track(TimetableStoreConfig),
 }
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
     async fn local(config: &TelemetryWatcherConfig) -> Result<()> {
         info!("Opening MongoDB client to database {}", &config.db_name);
-        let client = MongoClient::new(&config.db_uri, &config.db_name)
-            .await?
-            .get_telemetry_event_store(&config.network);
+        let client = MongoClient::new(&config.db_uri, &config.db_name).await?;
+
+        let store = client.get_telemetry_event_store(&config.network);
+        let mut tracker =
+            client.get_time_table_store(TimetableStoreConfig::dummy(), &config.network);
 
         info!(
             "Connecting to telemetry server {} ({})",
@@ -77,9 +88,31 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 )
             })?;
 
-        info!("Starting event loop ({})", config.network.as_ref());
+        match &config.store_behavior {
+            StoreBehavior::Track(track_config) => {
+                info!(
+                    "Starting downtime processing service ({})",
+                    config.network.as_ref()
+                );
+                tracker = client.get_time_table_store(track_config.clone(), &config.network);
+                let processor = tracker.clone();
+                tokio::spawn(async move {
+                    loop {
+                        if let Err(err) = processor.process_time_tables().await {
+                            error!("Exiting downtime processing service: {:?}", err);
+                            break;
+                        }
 
-        let store = client;
+                        time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;
+                    }
+                });
+
+                // TODO: If the downtime processor exists, the full application should exit.
+            }
+            _ => {}
+        }
+
+        info!("Starting event loop ({})", config.network.as_ref());
 
         while let Some(msg) = stream.next().await {
             match msg? {
@@ -93,7 +126,10 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                                 event.event_name(),
                             );
 
-                            store.store_event(event).await?;
+                            match config.store_behavior {
+                                StoreBehavior::Store => store.store_event(event).await?,
+                                StoreBehavior::Track(_) => tracker.track_event(event).await?,
+                            }
                         }
                     } else {
                         error!("Failed to deserialize telemetry event");
