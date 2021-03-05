@@ -110,12 +110,19 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                     "Starting downtime processing service ({})",
                     config.network.as_ref()
                 );
+
                 tracker = client.get_time_table_store(track_config.clone(), &config.network);
                 let processor = tracker.clone();
+                let network = config.network;
+
                 tokio::spawn(async move {
                     loop {
                         if let Err(err) = processor.process_time_tables().await {
-                            error!("Exiting downtime processing service: {:?}", err);
+                            error!(
+                                "Exiting downtime processing service: {:?} ({})",
+                                err,
+                                network.as_ref()
+                            );
                             break;
                         }
 
@@ -136,10 +143,11 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                     if let Ok(events) = TelemetryEvent::from_json(&content) {
                         for event in events {
                             debug!(
-                                "NodeId {} (name \"{}\"): new '{}' event",
+                                "NodeId {} (name \"{}\"): new '{}' event ({})",
                                 event.node_id().as_num(),
                                 event.node_name().map(|n| n.as_str()).unwrap_or("N/A"),
                                 event.event_name(),
+                                config.network.as_ref(),
                             );
 
                             match config.store_behavior {
