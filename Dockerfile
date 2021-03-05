@@ -1,5 +1,43 @@
-FROM rust
+# ------------------------------------------------------------------------------
+# Cargo Build Stage
+# ------------------------------------------------------------------------------
+
+FROM rust:1.46.0 AS builder
+
+WORKDIR /app
+
+COPY Cargo.lock Cargo.lock
+COPY Cargo.toml Cargo.toml
+
+RUN mkdir src/
+RUN mkdir src/bin
+RUN touch src/lib.rs
+RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
+
+RUN cargo build --release
+
+RUN rm -f target/release/deps/*watcher*
+RUN rm -f target/release/deps/*staking*
+RUN rm -rf src
 
 COPY . .
 
-RUN cargo run --bin candidate-verifier
+RUN cargo build --release
+
+# # ------------------------------------------------------------------------------
+# # Final Stage
+# # ------------------------------------------------------------------------------
+
+FROM debian:buster-slim
+
+RUN apt-get update && apt-get install -y libssl-dev ca-certificates
+RUN update-ca-certificates --fresh
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/candidate-verifier /usr/local/bin
+COPY config/service.yml ./config/service.yml
+COPY config/kusama_candidates.yml ./config/kusama_candidates.yml
+COPY config/polkadot_candidates.yml ./config/polkadot_candidates.yml
+
+CMD ["/usr/local/bin/candidate-verifier"]
