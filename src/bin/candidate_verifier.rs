@@ -2,50 +2,81 @@
 extern crate log;
 #[macro_use]
 extern crate serde;
-#[macro_use]
-extern crate anyhow;
 
 use lib::{
-    run_requirements_proceeding, run_telemetry_watcher, Candidate, Network, NodeName,
+    read_candidates, run_requirements_proceeding, run_telemetry_watcher, Network,
     RequirementsConfig, RequirementsProceedingConfig, Result, StoreBehavior,
-    TelemetryWatcherConfig,
+    TelemetryWatcherConfig, TimetableStoreConfig,
 };
 use std::fs::read_to_string;
 use tokio::time::{self, Duration};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 struct RootConfig {
     db_uri: String,
     db_name: String,
-    telemetry_watcher: ConfigWrapper<TelemetryTrackerConfig>,
-    candidate_verifier: ConfigWrapper<Vec<CandidateVerifierNetworkConfig>>,
+    services: Vec<ServiceType>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ConfigWrapper<T> {
-    pub enabled: bool,
-    pub config: Option<T>,
+#[serde(rename_all = "snake_case")]
+enum ServiceType {
+    TelemetryWatcher(TelemetryTrackerConfig),
+    CandidateVerifier(CandidateVerifierConfig),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 struct TelemetryTrackerConfig {
     telemetry_host: String,
-    store_behavior: StoreBehavior,
-    networks: Vec<Network>,
+    network: Network,
+    store_behavior: RawStoreBehavior,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-struct CandidateVerifierNetworkConfig {
-    network: Network,
+#[serde(tag = "type", content = "config", rename_all = "snake_case")]
+enum RawStoreBehavior {
+    Store,
+    Counter(RawCounterConfig),
+}
+
+impl RawStoreBehavior {
+    fn into_store_behavior(self, network: Network) -> Result<StoreBehavior> {
+        Ok(match self {
+            RawStoreBehavior::Store => StoreBehavior::Store,
+            RawStoreBehavior::Counter(config) => StoreBehavior::Counter({
+                TimetableStoreConfig {
+                    whitelist: read_candidates(&config.candidate_file, network)?
+                        .into_iter()
+                        .map(|c| c.node_name().clone())
+                        .collect(),
+                    threshold: config.threshold,
+                    max_downtime: config.max_downtime,
+                    monitoring_period: config.monitoring_period,
+                    is_dummy: false,
+                }
+            }),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+struct RawCounterConfig {
+    threshold: i64,
+    max_downtime: i64,
+    monitoring_period: i64,
+    candidate_file: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+struct CandidateVerifierConfig {
     rpc_hostname: String,
+    network: Network,
     candidate_file: String,
     requirements_config: RequirementsConfig<u128>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct RawCandidate {
-    name: NodeName,
-    stash: String,
 }
 
 #[tokio::main]
@@ -58,63 +89,49 @@ async fn main() -> Result<()> {
     let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
 
     // Process telemetry tracker configuration.
-    let tracker = root_config.telemetry_watcher;
-    if tracker.enabled {
-        let tracker_config = tracker.config.ok_or(anyhow!(
-            "No configuration is provided for (enabled) telemetry tracker"
-        ))?;
+    for service in root_config.services {
+        match service {
+            ServiceType::TelemetryWatcher(config) => {
+                let specialized = TelemetryWatcherConfig {
+                    db_uri: root_config.db_uri.clone(),
+                    db_name: root_config.db_name.clone(),
+                    telemetry_host: config.telemetry_host.clone(),
+                    network: config.network,
+                    store_behavior: config
+                        .store_behavior
+                        .clone()
+                        .into_store_behavior(config.network)?,
+                };
 
-        for network in tracker_config.networks {
-            info!(
-                "Starting telemetry watcher for {} network",
-                network.as_ref()
-            );
-            let specialized = TelemetryWatcherConfig {
-                db_uri: root_config.db_uri.clone(),
-                db_name: root_config.db_name.clone(),
-                telemetry_host: tracker_config.telemetry_host.clone(),
-                network: network,
-                store_behavior: tracker_config.store_behavior.clone(),
-            };
+                info!(
+                    "Starting telemetry watcher for {} network",
+                    config.network.as_ref()
+                );
 
-            run_telemetry_watcher(specialized).await?;
-        }
-    }
+                run_telemetry_watcher(specialized).await?;
+            }
+            ServiceType::CandidateVerifier(config) => {
+                let specialized = RequirementsProceedingConfig {
+                    db_uri: root_config.db_uri.clone(),
+                    db_name: root_config.db_name.clone(),
+                    rpc_hostname: config.rpc_hostname,
+                    requirements_config: config.requirements_config,
+                    network: config.network,
+                };
 
-    // Process candidate verifier configuration.
-    let verifier = root_config.candidate_verifier;
-    if verifier.enabled {
-        let verifier_config = verifier.config.ok_or(anyhow!(
-            "No configuration is provided for (enabled) candidate verifier"
-        ))?;
+                let candidates = read_candidates(&config.candidate_file, config.network)?;
 
-        for network_config in verifier_config {
-            let network = network_config.network;
-            info!(
-                "Starting candidate verifier for {} network",
-                network.as_ref()
-            );
+                info!(
+                    "Starting candidate verifier for {} network",
+                    config.network.as_ref()
+                );
 
-            let specialized = RequirementsProceedingConfig {
-                db_uri: root_config.db_uri.clone(),
-                db_name: root_config.db_name.clone(),
-                rpc_hostname: network_config.rpc_hostname,
-                requirements_config: network_config.requirements_config,
-                network: network,
-            };
-
-            let candidates: Vec<Candidate> = serde_yaml::from_str::<Vec<RawCandidate>>(
-                &read_to_string(&network_config.candidate_file)?,
-            )?
-            .into_iter()
-            .map(|raw| Candidate::new(raw.stash, raw.name, network))
-            .collect();
-
-            tokio::spawn(async move {
-                if let Err(err) = run_requirements_proceeding(specialized, candidates).await {
-                    error!("Exiting candidate verifier {:?}", err);
-                }
-            });
+                tokio::spawn(async move {
+                    if let Err(err) = run_requirements_proceeding(specialized, candidates).await {
+                        error!("Exiting candidate verifier {:?}", err);
+                    }
+                });
+            }
         }
     }
 

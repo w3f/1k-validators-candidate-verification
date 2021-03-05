@@ -1,13 +1,8 @@
 db_uri: "mongodb://localhost:27017/"
 db_name: "candidate_verifier"
-telemetry_watcher:
-  enabled: true
-  config:
-    telemetry_host: "wss://telemetry-backend.w3f.community/feed"
-    store_behavior:
-      type: store
-    networks:
-      - "polkadot"
-      - "kusama"
-candidate_verifier:
-  enabled: false
+services:
+  - telemetry_watcher:
+      telemetry_host: "wss://telemetry-backend.w3f.community/feed"
+      network: "polkadot"
+      store_behavior:
+        type: store

@@ -208,12 +208,11 @@ impl CandidateStateStore {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TimetableStoreConfig {
-    whitelist: HashSet<NodeName>,
-    threshold: i64,
-    max_downtime: i64,
-    monitoring_period: i64,
-    #[serde(skip)]
-    is_dummy: bool,
+    pub whitelist: HashSet<NodeName>,
+    pub threshold: i64,
+    pub max_downtime: i64,
+    pub monitoring_period: i64,
+    pub is_dummy: bool,
 }
 
 impl TimetableStoreConfig {

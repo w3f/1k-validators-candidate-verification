@@ -18,10 +18,11 @@ mod jury;
 mod system;
 
 // Re-exports
+pub use database::TimetableStoreConfig;
 pub use events::NodeName;
 pub use jury::RequirementsConfig;
 pub use system::{
-    run_requirements_proceeding, run_telemetry_watcher, Candidate, Network,
+    read_candidates, run_requirements_proceeding, run_telemetry_watcher, Candidate, Network,
     RequirementsProceedingConfig, StoreBehavior, TelemetryWatcherConfig,
 };
 

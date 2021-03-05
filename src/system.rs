@@ -3,6 +3,7 @@ use crate::events::{NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
+use std::fs::read_to_string;
 use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 use tokio::time::{self, Duration};
@@ -38,6 +39,21 @@ impl AsRef<str> for Network {
     }
 }
 
+pub fn read_candidates(path: &str, network: Network) -> Result<Vec<Candidate>> {
+    #[derive(Debug, Clone, Deserialize, Serialize)]
+    struct RawCandidate {
+        name: NodeName,
+        stash: String,
+    }
+
+    let candidates = serde_yaml::from_str::<Vec<RawCandidate>>(&read_to_string(path)?)?
+        .into_iter()
+        .map(|raw| Candidate::new(raw.stash, raw.name, network))
+        .collect();
+
+    Ok(candidates)
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TelemetryWatcherConfig {
     pub db_uri: String,
@@ -51,7 +67,7 @@ pub struct TelemetryWatcherConfig {
 #[serde(tag = "type", content = "config", rename_all = "snake_case")]
 pub enum StoreBehavior {
     Store,
-    Track(TimetableStoreConfig),
+    Counter(TimetableStoreConfig),
 }
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
@@ -89,7 +105,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
             })?;
 
         match &config.store_behavior {
-            StoreBehavior::Track(track_config) => {
+            StoreBehavior::Counter(track_config) => {
                 info!(
                     "Starting downtime processing service ({})",
                     config.network.as_ref()
@@ -128,7 +144,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
 
                             match config.store_behavior {
                                 StoreBehavior::Store => store.store_event(event).await?,
-                                StoreBehavior::Track(_) => tracker.track_event(event).await?,
+                                StoreBehavior::Counter(_) => tracker.track_event(event).await?,
                             }
                         }
                     } else {
