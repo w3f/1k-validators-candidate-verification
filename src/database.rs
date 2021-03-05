@@ -112,7 +112,7 @@ pub struct Timetable {
     last_event: LogTimestamp,
     offline_counter: i64,
     checkpoint: Option<LogTimestamp>,
-    start_period: Option<LogTimestamp>,
+    start_period: LogTimestamp,
 }
 
 pub struct MongoClient {
@@ -308,6 +308,7 @@ impl TimetableStore {
 
         Ok(())
     }
+    // TODO: Return metadata and write individual test for it.
     pub async fn process_time_tables(&self, now: Option<LogTimestamp>) -> Result<()> {
         let now = now.unwrap_or(LogTimestamp::new());
         let threshold = now.as_secs() - self.config.threshold;
@@ -327,33 +328,37 @@ impl TimetableStore {
         while let Some(doc) = cursor.next().await {
             let timetable: Timetable = from_document(doc?)?;
 
-            // Determine the value for determining the checkpoint.
-            let to_subtract = if let Some(checkpoint) = timetable.checkpoint {
-                checkpoint
+            // Determine the additional downtime from the last checkpoint until now.
+            let add_downtime = if let Some(checkpoint) = timetable.checkpoint {
+                now - checkpoint
             } else {
-                timetable.last_event
-            };
-
-            let mut update = doc! {
-                "$set": {
-                    "checkpoint": now.to_bson()?,
-                },
-                "$inc": {
-                    "offline_counter": (now - to_subtract).to_bson()?,
-                }
+                now - timetable.last_event
             };
 
             // Check if the monitoring period has completed and reset, if appropriate.
-            if let Some(start_period) = timetable.start_period {
-                if start_period.as_secs() < now.as_secs() - self.config.monitoring_period {
-                    update.extend(doc! {
-                        "$set": {
-                            "offline_counter": 0,
-                            "start_period": now.to_bson()?,
-                        }
-                    });
+            let update = if timetable.start_period.as_secs()
+                <= now.as_secs() - self.config.monitoring_period
+            {
+                doc! {
+                    "$set": {
+                        "last_event": now.to_bson()?,
+                        // Start from zero, but adding the new downtime.
+                        "offline_counter": add_downtime.to_bson()?,
+                        "checkpoint": now.to_bson()?,
+                        "start_period": now.to_bson()?,
+                    }
                 }
-            }
+            } else {
+                // Set the current checkpoint at which the downtime was counted.
+                doc! {
+                    "$set": {
+                        "checkpoint": now.to_bson()?,
+                    },
+                    "$inc": {
+                        "offline_counter": add_downtime.to_bson()?,
+                    }
+                }
+            };
 
             // Insert state into storage.
             self.coll
@@ -917,11 +922,18 @@ mod tests {
                 .await
                 .unwrap();
 
-            client.process_time_tables(Some(LogTimestamp(starting + interval))).await.unwrap();
+            client
+                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
         }
 
         // Candidates could not be found (`AddedNode` events must be tracked first).
-        assert!(client.has_downtime_violation(&alice).await.unwrap().is_none());
+        assert!(client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .is_none());
         assert!(client.has_downtime_violation(&bob).await.unwrap().is_none());
         assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
 
@@ -947,10 +959,17 @@ mod tests {
                 .await
                 .unwrap();
 
-            client.process_time_tables(Some(LogTimestamp(starting + interval))).await.unwrap();
+            client
+                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
         }
 
-        let (punish, downtime) = client.has_downtime_violation(&alice).await.unwrap().unwrap();
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
@@ -976,11 +995,13 @@ mod tests {
         };
 
         // Create client.
-        let mut client =
-            MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime_no_punish")
-                .await
-                .unwrap()
-                .get_time_table_store(config, &Network::Polkadot);
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_track_event_downtime_no_punish",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
 
         client.drop().await;
 
@@ -1016,10 +1037,17 @@ mod tests {
                     .unwrap();
             }
 
-            client.process_time_tables(Some(LogTimestamp(starting + interval))).await.unwrap();
+            client
+                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
         }
 
-        let (punish, downtime) = client.has_downtime_violation(&alice).await.unwrap().unwrap();
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
@@ -1042,11 +1070,13 @@ mod tests {
         };
 
         // Create client.
-        let mut client =
-            MongoClient::new("mongodb://localhost:27017/", "test_track_event_downtime_do_punish")
-                .await
-                .unwrap()
-                .get_time_table_store(config, &Network::Polkadot);
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_track_event_downtime_do_punish",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
 
         client.drop().await;
 
@@ -1088,16 +1118,103 @@ mod tests {
                     .unwrap();
             }
 
-            client.process_time_tables(Some(LogTimestamp(starting + interval))).await.unwrap();
+            client
+                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
         }
 
-        let (punish, downtime) = client.has_downtime_violation(&alice).await.unwrap().unwrap();
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
         let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
         assert_eq!(punish, true); // PUNISH.
         assert_eq!(downtime, 60);
+
+        client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn track_event_downtime_reset_period() {
+        let config = TimetableStoreConfig {
+            whitelist: vec![NodeName::alice(), NodeName::bob()]
+                .into_iter()
+                .collect(),
+            threshold: 22,
+            max_downtime: 50,
+            monitoring_period: 100,
+        };
+
+        // Create client.
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_track_event_downtime_reset_period",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
+
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+
+        // Valid events (node name found)
+        #[rustfmt::skip]
+        let events = [
+            // Alice
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 0),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 20),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::alice())), 40),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 60),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 80),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 100),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 120),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 140),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::alice())), 160),
+            // Bob (downtimes, exceeds thresholds).
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 0),
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 20),
+            (None, 40),
+            (None, 60), // Downtime: +40 secs.
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 80),
+            (Some(TelemetryEvent::AddedNode(AddedNodeEvent::bob())), 100), // Monitoring period resets here.
+            (None, 120),
+            (None, 140), // Downtime: +40 secs.
+            (Some(TelemetryEvent::NodeStats(NodeStatsEvent::bob())), 160),
+        ];
+
+        let starting = LogTimestamp::zero().as_secs();
+        for (event, interval) in &events {
+            if let Some(event) = event {
+                client
+                    .track_event(event.clone(), Some(LogTimestamp(starting + interval)))
+                    .await
+                    .unwrap();
+            }
+
+            client
+                .process_time_tables(Some(LogTimestamp(starting + interval)))
+                .await
+                .unwrap();
+        }
+
+        let (punish, downtime) = client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(punish, false);
+        assert_eq!(downtime, 0);
+
+        let (punish, downtime) = client.has_downtime_violation(&bob).await.unwrap().unwrap();
+        assert_eq!(punish, false); // No punishment.
+        assert_eq!(downtime, 40);
 
         client.drop().await;
     }

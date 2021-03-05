@@ -227,25 +227,13 @@ mod tests {
 
     impl Candidate {
         pub fn alice() -> Self {
-            Candidate::new(
-                "".to_string(),
-                NodeName::alice(),
-                Network::Polkadot,
-            )
+            Candidate::new("".to_string(), NodeName::alice(), Network::Polkadot)
         }
         pub fn bob() -> Self {
-            Candidate::new(
-                "".to_string(),
-                NodeName::bob(),
-                Network::Polkadot,
-            )
+            Candidate::new("".to_string(), NodeName::bob(), Network::Polkadot)
         }
         pub fn eve() -> Self {
-            Candidate::new(
-                "".to_string(),
-                NodeName::eve(),
-                Network::Polkadot,
-            )
+            Candidate::new("".to_string(), NodeName::eve(), Network::Polkadot)
         }
     }
 
