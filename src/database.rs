@@ -110,7 +110,7 @@ impl CandidateState {
 pub struct Timetable {
     node_name: NodeName,
     last_event: LogTimestamp,
-    offline_counter: i64,
+    downtime: i64,
     checkpoint: Option<LogTimestamp>,
     start_period: LogTimestamp,
 }
@@ -295,7 +295,7 @@ impl TimetableStore {
                     },
                     "$setOnInsert": {
                         "start_period": now.to_bson()?,
-                        "offline_counter": 0,
+                        "downtime": 0,
                     }
                 },
                 Some({
@@ -343,7 +343,7 @@ impl TimetableStore {
                     "$set": {
                         "last_event": now.to_bson()?,
                         // Start from zero, but adding the new downtime.
-                        "offline_counter": add_downtime.to_bson()?,
+                        "downtime": add_downtime.to_bson()?,
                         "checkpoint": now.to_bson()?,
                         "start_period": now.to_bson()?,
                     }
@@ -355,7 +355,7 @@ impl TimetableStore {
                         "checkpoint": now.to_bson()?,
                     },
                     "$inc": {
-                        "offline_counter": add_downtime.to_bson()?,
+                        "downtime": add_downtime.to_bson()?,
                     }
                 }
             };
@@ -392,11 +392,11 @@ impl TimetableStore {
             )
             .await?
         {
-            let offline_counter = from_document::<Timetable>(doc)?.offline_counter;
-            if offline_counter > self.config.max_downtime {
-                Ok(Some((true, offline_counter)))
+            let downtime = from_document::<Timetable>(doc)?.downtime;
+            if downtime > self.config.max_downtime {
+                Ok(Some((true, downtime)))
             } else {
-                Ok(Some((false, offline_counter)))
+                Ok(Some((false, downtime)))
             }
         } else {
             Ok(None)
