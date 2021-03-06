@@ -94,6 +94,7 @@ impl CandidateState {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+// TODO: Check for individual fields in tests.
 pub struct Timetable {
     node_name: NodeName,
     last_event: LogTimestamp,
