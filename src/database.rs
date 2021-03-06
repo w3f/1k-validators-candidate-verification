@@ -98,7 +98,8 @@ pub struct Timetable {
     node_name: NodeName,
     last_event: LogTimestamp,
     downtime: i64,
-    checkpoint: Option<LogTimestamp>,
+    has_downtime_currently: bool,
+    last_downtime_increase: Option<LogTimestamp>,
     start_period: LogTimestamp,
 }
 
@@ -307,7 +308,7 @@ impl TimetableStore {
                 doc! {
                     "$set": {
                         "last_event": now.to_bson()?,
-                        "checkpoint": null,
+                        "has_downtime_currently": false,
                     },
                     "$setOnInsert": {
                         "start_period": now.to_bson()?,
@@ -352,36 +353,41 @@ impl TimetableStore {
         while let Some(doc) = cursor.next().await {
             let timetable: Timetable = from_document(doc?)?;
 
-            // Determine the additional downtime from the last checkpoint until now.
-            let add_downtime = if let Some(checkpoint) = timetable.checkpoint {
-                now - checkpoint
-            } else {
-                now - timetable.last_event
+            // Determine the additional downtime from the last last_downtime_increase or last event until now.
+            let add_downtime =
+                if let Some(last_downtime_increase) = timetable.last_downtime_increase {
+                    if timetable.has_downtime_currently {
+                        now - last_downtime_increase
+                    } else {
+                        now - timetable.last_event
+                    }
+                } else {
+                    now - timetable.last_event
+                };
+
+            let mut update = doc! {
+                "$set": {
+                    "has_downtime_currently": true,
+                    "last_downtime_increase": now.to_bson()?,
+                }
             };
 
             // Check if the monitoring period has completed and reset, if appropriate.
-            let update = if timetable.start_period.as_secs()
-                <= now.as_secs() - self.config.monitoring_period
-            {
-                doc! {
+            if timetable.start_period.as_secs() <= now.as_secs() - self.config.monitoring_period {
+                update.extend(doc! {
                     "$set": {
-                        "last_event": now.to_bson()?,
                         // Start from zero, but adding the new downtime.
                         "downtime": add_downtime.to_bson()?,
-                        "checkpoint": now.to_bson()?,
                         "start_period": now.to_bson()?,
                     }
-                }
+                });
             } else {
-                // Set the current checkpoint at which the downtime was counted.
-                doc! {
-                    "$set": {
-                        "checkpoint": now.to_bson()?,
-                    },
+                // Set the current last_downtime_increase at which the downtime was counted.
+                update.extend(doc! {
                     "$inc": {
                         "downtime": add_downtime.to_bson()?,
                     }
-                }
+                });
             };
 
             // Add metadata entry.
