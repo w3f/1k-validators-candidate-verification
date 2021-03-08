@@ -104,6 +104,7 @@ pub struct Timetable {
     start_period: LogTimestamp,
 }
 
+#[derive(Debug, Clone)]
 pub struct MongoClient {
     db: Database,
 }
@@ -145,6 +146,15 @@ impl MongoClient {
             )),
             name_lookup: HashMap::new(),
             config: config,
+        }
+    }
+    pub fn get_time_table_store_reader(&self, network: &Network) -> TimetableStoreReader {
+        TimetableStoreReader {
+            coll: self.db.collection(&format!(
+                "{}_{}",
+                TIMETABLE_STORE_COLLECTION,
+                network.as_ref()
+            )),
         }
     }
 }
@@ -236,6 +246,37 @@ pub struct ProcessingMetadata {
     pub total_downtime: i64,
     pub max_downtime: i64,
     pub next_reset: i64,
+}
+
+pub struct TimetableStoreReader {
+    coll: Collection,
+}
+
+impl TimetableStoreReader {
+    pub async fn find_entries(&self, name: Option<&str>) -> Result<Vec<Timetable>> {
+        let filter = if let Some(name) = name {
+            panic!("NO");
+        } else {
+            doc! {
+                "_id": 0,
+            }
+        };
+
+        let mut cursor = self
+            .coll
+            .find(
+                filter,
+                None,
+            )
+            .await?;
+
+        let mut timetables = vec![];
+        for doc in cursor.next().await {
+            timetables.push(from_document(doc?)?);
+        }
+
+        Ok(timetables)
+    }
 }
 
 #[derive(Debug, Clone)]

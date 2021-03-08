@@ -4,6 +4,7 @@ use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use std::fs::read_to_string;
+use std::str::FromStr;
 use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
 use tokio::time::{self, Duration};
@@ -36,6 +37,24 @@ impl AsRef<str> for Network {
             Network::Polkadot => "polkadot",
             Network::Kusama => "kusama",
         }
+    }
+}
+
+impl FromStr for Network {
+    type Err = anyhow::Error;
+
+    fn from_str(val: &str) -> Result<Self> {
+        let network = match val {
+            "polkadot" => Network::Polkadot,
+            "kusama" => Network::Kusama,
+            _ => {
+                return Err(anyhow!(
+                    "unrecognized network: {}. Expected 'Polkadot' or 'Kusama'"
+                ))
+            }
+        };
+
+        Ok(network)
     }
 }
 

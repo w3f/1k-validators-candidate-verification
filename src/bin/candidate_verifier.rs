@@ -4,7 +4,7 @@ extern crate log;
 extern crate serde;
 
 use lib::{
-    read_candidates, run_requirements_proceeding, run_telemetry_watcher, Network,
+    read_candidates, run_requirements_proceeding, run_telemetry_watcher, start_rest_api, Network,
     RequirementsConfig, RequirementsProceedingConfig, Result, StoreBehavior,
     TelemetryWatcherConfig, TimetableStoreConfig,
 };
@@ -134,6 +134,8 @@ async fn main() -> Result<()> {
             }
         }
     }
+
+    start_rest_api("127.0.0.1:5555")?;
 
     // Hold it here forever.
     loop {
