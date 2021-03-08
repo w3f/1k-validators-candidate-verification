@@ -97,6 +97,7 @@ impl CandidateState {
 // TODO: Check for individual fields in tests.
 pub struct Timetable {
     node_name: NodeName,
+    client_version: String,
     last_event: LogTimestamp,
     downtime: i64,
     has_downtime_currently: bool,
@@ -323,12 +324,15 @@ impl TimetableStore {
     ) -> Result<()> {
         let now = now.unwrap_or(LogTimestamp::new());
         let node_id = event.node_id();
+        let mut client_version = None;
 
         let node_name = match event {
             // `AddedNode` events need special treatment since only those
-            // specify a node name.
+            // specify a node name. It also contains the client version, which
+            // we need to keep track of.
             TelemetryEvent::AddedNode(ref event) => {
                 let node_name = &event.details.name;
+                client_version = Some(event.details.version.clone());
 
                 // Only process whitelisted node names.
                 if !self.config.whitelist.contains(&node_name) {
@@ -365,22 +369,44 @@ impl TimetableStore {
             }
         };
 
+        // Add a client version if present.
+        //
+        // FYI: Mongo does not support having multiple `$set` operators, so it must be
+        // done this way.
+        let mut update = if let Some(version) = client_version {
+            doc! {
+                "$set": {
+                    "last_event": now.to_bson()?,
+                    "has_downtime_currently": false,
+                    "client_version": version.to_bson()?,
+                }
+            }
+        } else {
+            doc! {
+                "$set": {
+                    "last_event": now.to_bson()?,
+                    "has_downtime_currently": false,
+                }
+            }
+        };
+
+        // Add default values.
+        update.extend(
+            doc! {
+                "$setOnInsert": {
+                    "start_period": now.to_bson()?,
+                    "downtime": 0,
+                }
+            }
+        );
+
         // Update last event timestamp.
         self.coll
             .update_one(
                 doc! {
                     "node_name": node_name.to_bson()?,
                 },
-                doc! {
-                    "$set": {
-                        "last_event": now.to_bson()?,
-                        "has_downtime_currently": false,
-                    },
-                    "$setOnInsert": {
-                        "start_period": now.to_bson()?,
-                        "downtime": 0,
-                    }
-                },
+                update,
                 Some({
                     let mut options = UpdateOptions::default();
                     options.upsert = Some(true);
@@ -499,10 +525,6 @@ pub struct TelemetryEventStore {
 }
 
 impl TelemetryEventStore {
-    #[cfg(test)]
-    async fn drop(&self) {
-        self.coll.drop(None).await.unwrap();
-    }
     pub async fn store_event(&self, event: TelemetryEvent) -> Result<()> {
         self.store_event_with_timestamp(event, None).await
     }
@@ -540,24 +562,6 @@ impl TelemetryEventStore {
             .await?;
 
         Ok(())
-    }
-    // TODO: Required?
-    #[allow(unused)]
-    pub async fn get_node_activity_by_id(&self, node_id: &NodeId) -> Result<Option<NodeActivity>> {
-        if let Some(doc) = self
-            .coll
-            .find_one(
-                doc! {
-                    "node_id": node_id.to_bson()?,
-                },
-                None,
-            )
-            .await?
-        {
-            Ok(Some(from_document(doc)?))
-        } else {
-            Ok(None)
-        }
     }
     // TODO: Make use of this.
     #[allow(unused)]
@@ -610,6 +614,27 @@ impl TelemetryEventStore {
         }
 
         Ok(m_version)
+    }
+    #[cfg(test)]
+    async fn drop(&self) {
+        self.coll.drop(None).await.unwrap();
+    }
+    #[cfg(test)]
+    pub async fn get_node_activity_by_id(&self, node_id: &NodeId) -> Result<Option<NodeActivity>> {
+        if let Some(doc) = self
+            .coll
+            .find_one(
+                doc! {
+                    "node_id": node_id.to_bson()?,
+                },
+                None,
+            )
+            .await?
+        {
+            Ok(Some(from_document(doc)?))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -932,6 +957,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
@@ -1013,6 +1039,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
