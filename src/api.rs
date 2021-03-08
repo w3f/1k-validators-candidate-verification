@@ -45,14 +45,14 @@ async fn handler(
 }
 
 pub async fn start_rest_api(addr: &'static str) -> std::result::Result<(), anyhow::Error> {
-            let state = MongoState {
-                client: MongoClient::new("mongodb://localhost:27017/", "downtime_tracking").await?,
-            };
+    let state = MongoState {
+        client: MongoClient::new("mongodb://localhost:27017/", "downtime_tracking").await?,
+    };
 
-            HttpServer::new(move || App::new().data(state.clone()).service(handler))
-                .bind(addr)?
-                .shutdown_timeout(5)
-                .run()
-                .await
-                .map_err(|err| err.into())
+    HttpServer::new(move || App::new().data(state.clone()).service(handler))
+        .bind(addr)?
+        .shutdown_timeout(5)
+        .run()
+        .await
+        .map_err(|err| err.into())
 }
