@@ -1,4 +1,4 @@
-use crate::database::{CandidateState, TelemetryEventStore};
+use crate::database::{CandidateState, TimetableStoreReader};
 use crate::jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport};
 use crate::system::Candidate;
 use crate::Result;
@@ -36,7 +36,7 @@ impl TryFrom<Candidate> for NetworkAccount<AccountId32> {
 pub struct RequirementsProceeding<T: Runtime + Balances> {
     client: Client<T>,
     requirements: RequirementsConfig<T::Balance>,
-    telemetry_store: TelemetryEventStore,
+    store: TimetableStoreReader,
 }
 
 impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T>
@@ -46,7 +46,7 @@ where
     pub async fn new(
         rpc_hostname: &str,
         requirements: RequirementsConfig<T::Balance>,
-        store: TelemetryEventStore,
+        store: TimetableStoreReader,
     ) -> Result<Self> {
         Ok(RequirementsProceeding {
             client: ClientBuilder::<T>::new()
@@ -55,18 +55,15 @@ where
                 .build()
                 .await?,
             requirements: requirements,
-            telemetry_store: store,
+            store: store,
         })
     }
     pub async fn proceed_requirements(
         &self,
         state: CandidateState,
     ) -> Result<RequirementsJudgementReport> {
-        let mut jury = RequirementsJudgement::<T>::new(
-            &state,
-            &self.requirements,
-            self.telemetry_store.clone(),
-        )?;
+        let mut jury =
+            RequirementsJudgement::<T>::new(&state, &self.requirements, self.store.clone())?;
 
         let account_id = state.candidate.to_account_id::<T::AccountId>()?;
 
@@ -100,11 +97,7 @@ where
         }
 
         // Requirement: Node uptime.
-        let node_ids = self
-            .telemetry_store
-            .get_node_ids_by_name(state.candidate.node_name())
-            .await?;
-        jury.judge_node_uptime(&node_ids).await?;
+        //jury.judge_node_uptime(&node_ids).await?;
 
         Ok(jury.generate_report())
     }

@@ -135,5 +135,10 @@ async fn main() -> Result<()> {
         }
     }
 
-    start_rest_api(root_config.rest_api, &root_config.db_uri, &root_config.db_name).await
+    start_rest_api(
+        root_config.rest_api,
+        &root_config.db_uri,
+        &root_config.db_name,
+    )
+    .await
 }

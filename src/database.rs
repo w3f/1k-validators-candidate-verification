@@ -4,6 +4,7 @@ use crate::{
     system::{Candidate, Network},
 };
 use crate::{Result, ToBson};
+use actix_web::client::ConnectError;
 use bson::from_document;
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
@@ -248,6 +249,7 @@ pub struct ProcessingMetadata {
     pub next_reset: i64,
 }
 
+#[derive(Debug, Clone)]
 pub struct TimetableStoreReader {
     coll: Collection,
 }
@@ -277,6 +279,42 @@ impl TimetableStoreReader {
         }
 
         Ok(timetables)
+    }
+    /// Checks whether the candidate has any downtime. Returns a tuple (if the
+    /// candidate could be found) where the `bool` indicates whether the
+    /// candidate should be punished (exceeds the maximum downtime) and the
+    /// `i64` indicates the downtime in seconds.
+    pub async fn has_downtime_violation(
+        &self,
+        candidate: &Candidate,
+        max_downtime: i64,
+    ) -> Result<Option<(bool, i64)>> {
+        has_downtime(candidate, max_downtime, &self.coll).await
+    }
+}
+
+async fn has_downtime(
+    candidate: &Candidate,
+    max_downtime: i64,
+    coll: &Collection,
+) -> Result<Option<(bool, i64)>> {
+    if let Some(doc) = coll
+        .find_one(
+            doc! {
+                "node_name": candidate.node_name().to_bson()?,
+            },
+            None,
+        )
+        .await?
+    {
+        let downtime = from_document::<Timetable>(doc)?.downtime;
+        if downtime > max_downtime {
+            Ok(Some((true, downtime)))
+        } else {
+            Ok(Some((false, downtime)))
+        }
+    } else {
+        Ok(None)
     }
 }
 
@@ -456,34 +494,12 @@ impl TimetableStore {
 
         Ok(change_log)
     }
-    /// Checks whether the candidate has any downtime. Returns a tuple (if the
-    /// candidate could be found) where the `bool` indicates whether the
-    /// candidate should be punished (exceeds the maximum downtime) and the
-    /// `i64` indicates the downtime in seconds.
-    #[allow(dead_code)]
+    /// Convenience function. Is primarily used on [`TimetableStoreReader`].
     pub async fn has_downtime_violation(
         &self,
         candidate: &Candidate,
     ) -> Result<Option<(bool, i64)>> {
-        if let Some(doc) = self
-            .coll
-            .find_one(
-                doc! {
-                    "node_name": candidate.node_name().to_bson()?,
-                },
-                None,
-            )
-            .await?
-        {
-            let downtime = from_document::<Timetable>(doc)?.downtime;
-            if downtime > self.config.max_downtime {
-                Ok(Some((true, downtime)))
-            } else {
-                Ok(Some((false, downtime)))
-            }
-        } else {
-            Ok(None)
-        }
+        has_downtime(candidate, self.config.max_downtime, &self.coll).await
     }
     #[cfg(test)]
     async fn drop(&self) {

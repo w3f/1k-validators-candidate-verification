@@ -62,7 +62,11 @@ async fn handler(
         .map_err(|_| WebError::internal().into())
 }
 
-pub async fn start_rest_api(config: RestApiConfig, db_uri: &str, db_name: &str) -> std::result::Result<(), anyhow::Error> {
+pub async fn start_rest_api(
+    config: RestApiConfig,
+    db_uri: &str,
+    db_name: &str,
+) -> std::result::Result<(), anyhow::Error> {
     let state = MongoState {
         client: MongoClient::new(db_uri, db_name).await?,
     };

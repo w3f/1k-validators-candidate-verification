@@ -265,14 +265,14 @@ pub async fn run_requirements_proceeding(
     let store = MongoClient::new(&config.db_uri, &config.db_name).await?;
 
     let candidate_store = store.get_candidate_state_store(&config.network);
-    let telemetry_store = store.get_telemetry_event_store(&config.network);
+    let time_table_reader = store.get_time_table_store_reader(&config.network);
 
     match config.network {
         Network::Polkadot => {
             let proceeding = RequirementsProceeding::<DefaultNodeRuntime>::new(
                 &config.rpc_hostname,
                 config.requirements_config,
-                telemetry_store,
+                time_table_reader,
             )
             .await?;
 
@@ -293,7 +293,7 @@ pub async fn run_requirements_proceeding(
             let proceeding = RequirementsProceeding::<KusamaRuntime>::new(
                 &config.rpc_hostname,
                 config.requirements_config,
-                telemetry_store,
+                time_table_reader,
             )
             .await?;
 

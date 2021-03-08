@@ -1,7 +1,7 @@
 use crate::system::Candidate;
 use crate::Result;
 use crate::{
-    database::{CandidateState, TelemetryEventStore},
+    database::{CandidateState, TimetableStoreReader},
     events::NodeId,
 };
 use sp_arithmetic::Perbill;
@@ -74,7 +74,7 @@ pub struct RequirementsJudgement<'a, T: Balances> {
     config: &'a RequirementsConfig<T::Balance>,
     faults: PrevNow<isize>,
     rank: PrevNow<isize>,
-    telemetry_store: TelemetryEventStore,
+    store: TimetableStoreReader,
 }
 
 impl<'a, T: Balances> RequirementsJudgement<'a, T>
@@ -84,7 +84,7 @@ where
     pub fn new(
         state: &CandidateState,
         config: &'a RequirementsConfig<T::Balance>,
-        store: TelemetryEventStore,
+        store: TimetableStoreReader,
     ) -> Result<Self> {
         let candidate = state.candidate.clone();
         let (faults, rank) = state
@@ -99,7 +99,7 @@ where
             config: config,
             faults: faults,
             rank: rank,
-            telemetry_store: store,
+            store: store,
         })
     }
     pub fn generate_report(self) -> RequirementsJudgementReport {
