@@ -257,7 +257,6 @@ impl TimetableStoreReader {
         let filter = if let Some(name) = name {
             doc! {
                 "node_name": format!("/{}/i", name),
-                "_id": 0,
             }
         } else {
             doc! {

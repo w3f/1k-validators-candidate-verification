@@ -24,17 +24,23 @@ impl WebError {
     }
 }
 
-#[get("/uptime/{network}/{who}")]
+#[derive(Deserialize)]
+struct DowntimeQuery {
+    network: Network,
+    name: Option<String>,
+}
+
+#[get("/uptime")]
 async fn handler(
-    path: web::Path<(Network, String)>,
+    query: web::Query<DowntimeQuery>,
     state: web::Data<MongoState>,
 ) -> Result<web::Json<Vec<Timetable>>> {
-    let (network, who) = path.into_inner();
-    let store = state.client.get_time_table_store_reader(&network);
+    let store = state.client.get_time_table_store_reader(&query.network);
 
-    let who = match who.as_str() {
-        "all" => None,
-        name @ _ => Some(name),
+    let who = if let Some(name) = &query.name {
+        Some(name.as_str())
+    } else {
+        None
     };
 
     store
