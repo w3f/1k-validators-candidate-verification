@@ -11,6 +11,7 @@ use bson::ser::to_bson;
 use bson::Bson;
 use serde::ser::Serialize;
 
+mod api;
 mod database;
 mod events;
 mod judge;
