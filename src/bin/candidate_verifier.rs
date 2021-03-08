@@ -5,7 +5,7 @@ extern crate serde;
 
 use lib::{
     read_candidates, run_requirements_proceeding, run_telemetry_watcher, start_rest_api, Network,
-    RequirementsConfig, RequirementsProceedingConfig, Result, StoreBehavior,
+    RequirementsConfig, RequirementsProceedingConfig, RestApiConfig, Result, StoreBehavior,
     TelemetryWatcherConfig, TimetableStoreConfig,
 };
 use std::fs::read_to_string;
@@ -16,6 +16,7 @@ struct RootConfig {
     db_uri: String,
     db_name: String,
     services: Vec<ServiceType>,
+    rest_api: RestApiConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -134,5 +135,5 @@ async fn main() -> Result<()> {
         }
     }
 
-    start_rest_api("127.0.0.1:5555").await
+    start_rest_api(root_config.rest_api, &root_config.db_uri, &root_config.db_name).await
 }

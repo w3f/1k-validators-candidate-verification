@@ -2,6 +2,18 @@ use crate::database::{MongoClient, Timetable};
 use crate::system::Network;
 use actix_web::{get, web, App, HttpServer, ResponseError, Result};
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RestApiConfig {
+    pub listen_addr: String,
+    pub port: usize,
+    pub endpoints: EndpointConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EndpointConfig {
+    pub uptime: bool,
+}
+
 #[derive(Clone)]
 struct MongoState {
     client: MongoClient,
@@ -50,15 +62,27 @@ async fn handler(
         .map_err(|_| WebError::internal().into())
 }
 
-pub async fn start_rest_api(addr: &'static str) -> std::result::Result<(), anyhow::Error> {
+pub async fn start_rest_api(config: RestApiConfig, db_uri: &str, db_name: &str) -> std::result::Result<(), anyhow::Error> {
     let state = MongoState {
-        client: MongoClient::new("mongodb://localhost:27017/", "downtime_tracking").await?,
+        client: MongoClient::new(db_uri, db_name).await?,
     };
 
-    HttpServer::new(move || App::new().data(state.clone()).service(handler))
-        .bind(addr)?
-        .shutdown_timeout(5)
-        .run()
-        .await
-        .map_err(|err| err.into())
+    let listen_addr = config.listen_addr;
+    let port = config.port;
+    let endpoints = config.endpoints;
+
+    HttpServer::new(move || {
+        let mut app = App::new().data(state.clone());
+
+        if endpoints.uptime {
+            app = app.service(handler);
+        }
+
+        app
+    })
+    .bind(&format!("{}:{}", listen_addr, port))?
+    .shutdown_timeout(5)
+    .run()
+    .await
+    .map_err(|err| err.into())
 }

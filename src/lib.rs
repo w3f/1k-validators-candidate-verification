@@ -19,7 +19,7 @@ mod jury;
 mod system;
 
 // Re-exports
-pub use api::start_rest_api;
+pub use api::{start_rest_api, RestApiConfig};
 pub use database::TimetableStoreConfig;
 pub use events::NodeName;
 pub use jury::RequirementsConfig;
