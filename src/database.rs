@@ -224,19 +224,6 @@ pub struct TimetableStoreConfig {
     pub threshold: i64,
     pub max_downtime: i64,
     pub monitoring_period: i64,
-    pub is_dummy: bool,
-}
-
-impl TimetableStoreConfig {
-    pub fn dummy() -> Self {
-        TimetableStoreConfig {
-            whitelist: HashSet::new(),
-            threshold: 0,
-            max_downtime: 0,
-            monitoring_period: 0,
-            is_dummy: true,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -324,7 +311,6 @@ pub struct TimetableStore {
     config: TimetableStoreConfig,
 }
 
-// TODO: Handle dummy
 impl TimetableStore {
     /// Private method to set timestamp manually. Required by certain tests.
     pub async fn track_event(&mut self, event: TelemetryEvent) -> Result<()> {
@@ -499,7 +485,7 @@ impl TimetableStore {
         &self,
         candidate: &Candidate,
     ) -> Result<Option<(bool, i64)>> {
-        has_downtime(candidate, self.config.max_downtime, &self.coll).await
+        has_downtime_violation(candidate, self.config.max_downtime, &self.coll).await
     }
     #[cfg(test)]
     async fn drop(&self) {
@@ -791,7 +777,6 @@ mod tests {
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
-            is_dummy: false,
         };
 
         // Create client.
@@ -891,7 +876,6 @@ mod tests {
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
-            is_dummy: false,
         };
 
         // Create client.
@@ -967,7 +951,6 @@ mod tests {
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
-            is_dummy: false,
         };
 
         // Create client.
@@ -1049,7 +1032,6 @@ mod tests {
             threshold: 22,
             max_downtime: 50,
             monitoring_period: 100,
-            is_dummy: false,
         };
 
         // Create client.

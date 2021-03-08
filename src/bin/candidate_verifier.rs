@@ -54,7 +54,6 @@ impl RawStoreBehavior {
                     threshold: config.threshold,
                     max_downtime: config.max_downtime,
                     monitoring_period: config.monitoring_period,
-                    is_dummy: false,
                 }
             }),
         })

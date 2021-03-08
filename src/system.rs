@@ -94,9 +94,8 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
         info!("Opening MongoDB client to database {}", &config.db_name);
         let client = MongoClient::new(&config.db_uri, &config.db_name).await?;
 
-        let store = client.get_telemetry_event_store(&config.network);
-        let mut tracker =
-            client.get_time_table_store(TimetableStoreConfig::dummy(), &config.network);
+        let telemetry_event_store = client.get_telemetry_event_store(&config.network);
+        let mut time_table_store = None;
 
         info!(
             "Connecting to telemetry server {} ({})",
@@ -130,8 +129,9 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                     config.network.as_ref()
                 );
 
-                tracker = client.get_time_table_store(track_config.clone(), &config.network);
-                let processor = tracker.clone();
+                // Initialize store.
+                let processor = client.get_time_table_store(track_config.clone(), &config.network);
+                time_table_store = Some(processor.clone());
                 let network = config.network;
 
                 tokio::spawn(async move {
@@ -184,9 +184,16 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                                         config.network.as_ref(),
                                     );
 
-                                    store.store_event(event).await?
+                                    telemetry_event_store.store_event(event).await?
                                 }
-                                StoreBehavior::Counter(_) => tracker.track_event(event).await?,
+                                // Panicking on `unwrap` would imply a bug.
+                                StoreBehavior::Counter(_) => {
+                                    time_table_store
+                                        .as_mut()
+                                        .unwrap()
+                                        .track_event(event)
+                                        .await?
+                                }
                             }
                         }
                     } else {
@@ -376,8 +383,7 @@ mod tests {
             requirements_config: RequirementsConfig {
                 max_commission: 10,
                 min_bonded_amount: 10000,
-                node_activity_timespan: 0,
-                max_node_activity_diff: 0,
+                max_downtime: 0,
             },
         };
 
