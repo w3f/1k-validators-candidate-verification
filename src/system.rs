@@ -136,6 +136,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
 
                 tokio::spawn(async move {
                     loop {
+                        println!("UPDATE");
                         match processor.process_time_tables().await {
                             Ok(metadata) => {
                                 for entry in metadata {

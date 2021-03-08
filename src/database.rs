@@ -254,20 +254,25 @@ pub struct TimetableStoreReader {
 
 impl TimetableStoreReader {
     pub async fn find_entries(&self, name: Option<&str>) -> Result<Vec<Timetable>> {
+        // Since a lot of candidates use emojis in their node name, regex is
+        // used to search for direct entries. This might not be the best option
+        // regarding performance, but the service only stores whitelisted
+        // candidates, keeping the database quite small.
         let filter = if let Some(name) = name {
             doc! {
-                "node_name": format!("/{}/i", name),
+                "node_name": {
+                    "$regex": name.to_bson()?,
+                    "$options": "i",
+                }
             }
         } else {
-            doc! {
-                "_id": 0,
-            }
+            doc! {}
         };
 
         let mut cursor = self.coll.find(filter, None).await?;
 
         let mut timetables = vec![];
-        for doc in cursor.next().await {
+        while let Some(doc) = cursor.next().await {
             timetables.push(from_document(doc?)?);
         }
 

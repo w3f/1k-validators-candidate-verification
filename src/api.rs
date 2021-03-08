@@ -47,7 +47,7 @@ async fn handler(
         .find_entries(who)
         .await
         .map(|t| web::Json(t))
-        .map_err(|err| WebError::internal().into())
+        .map_err(|_| WebError::internal().into())
 }
 
 pub async fn start_rest_api(addr: &'static str) -> std::result::Result<(), anyhow::Error> {
