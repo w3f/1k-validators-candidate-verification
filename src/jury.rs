@@ -1,9 +1,6 @@
+use crate::database::{CandidateState, TimetableStoreReader};
 use crate::system::Candidate;
 use crate::Result;
-use crate::{
-    database::{CandidateState, TimetableStoreReader},
-    events::NodeId,
-};
 use sp_arithmetic::Perbill;
 
 use substrate_subxt::identity::{Data, Judgement as RegistrarJudgement, Registration};
@@ -41,8 +38,7 @@ pub enum Judgement {
 pub struct RequirementsConfig<Balance> {
     pub max_commission: u32,
     pub min_bonded_amount: Balance,
-    pub node_activity_timespan: u64,
-    pub max_node_activity_diff: u64,
+    pub max_downtime: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -243,8 +239,13 @@ where
             self.judgments.push(Judgement::Fault(Context::BondedAmount));
         }
     }
-    pub async fn judge_node_uptime(&mut self, node_ids: &[NodeId]) -> Result<()> {
-        if !node_ids.is_empty() {
+    pub async fn judge_node_uptime(&mut self, candidate: &Candidate) -> Result<()> {
+        let info = self
+            .store
+            .has_downtime_violation(candidate, self.config.max_downtime)
+            .await?;
+
+        if info.is_some() {
             self.judgments.push(Judgement::Ok(Context::NodeNameFound));
         } else {
             self.judgments
@@ -252,12 +253,9 @@ where
             return Ok(());
         }
 
-        // Check is node Id. As soon as one of those has the required uptime,
-        // the candidate is marked as compliant.
-        // TODO
-        let is_compliant = false;
+        let (has_downtime, _) = info.unwrap();
 
-        if is_compliant {
+        if has_downtime {
             self.judgments
                 .push(Judgement::Ok(Context::RequiredNodeUptime));
         } else {

@@ -97,7 +97,7 @@ where
         }
 
         // Requirement: Node uptime.
-        //jury.judge_node_uptime(&node_ids).await?;
+        jury.judge_node_uptime(&state.candidate).await?;
 
         Ok(jury.generate_report())
     }

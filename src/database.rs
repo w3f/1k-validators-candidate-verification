@@ -4,7 +4,6 @@ use crate::{
     system::{Candidate, Network},
 };
 use crate::{Result, ToBson};
-use actix_web::client::ConnectError;
 use bson::from_document;
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
@@ -289,11 +288,11 @@ impl TimetableStoreReader {
         candidate: &Candidate,
         max_downtime: i64,
     ) -> Result<Option<(bool, i64)>> {
-        has_downtime(candidate, max_downtime, &self.coll).await
+        has_downtime_violation(candidate, max_downtime, &self.coll).await
     }
 }
 
-async fn has_downtime(
+async fn has_downtime_violation(
     candidate: &Candidate,
     max_downtime: i64,
     coll: &Collection,
@@ -495,6 +494,7 @@ impl TimetableStore {
         Ok(change_log)
     }
     /// Convenience function. Is primarily used on [`TimetableStoreReader`].
+    #[cfg(test)]
     pub async fn has_downtime_violation(
         &self,
         candidate: &Candidate,
@@ -554,26 +554,6 @@ impl TelemetryEventStore {
             .await?;
 
         Ok(())
-    }
-    pub async fn get_node_ids_by_name(&self, name: &NodeName) -> Result<Vec<NodeId>> {
-        let mut cursor = self
-            .coll
-            .find(
-                doc! {
-                    "node_name": name.to_bson()?,
-                    "_id": 0,
-                    "node_id":  1,
-                },
-                None,
-            )
-            .await?;
-
-        let mut node_ids: Vec<NodeId> = vec![];
-        while let Some(doc) = cursor.next().await {
-            node_ids.push(from_document(doc?)?);
-        }
-
-        Ok(node_ids)
     }
     // TODO: Required?
     #[allow(unused)]
