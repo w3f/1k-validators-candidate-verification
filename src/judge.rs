@@ -62,6 +62,12 @@ where
         &self,
         state: CandidateState,
     ) -> Result<RequirementsJudgementReport> {
+        debug!(
+            "Starting requirement checking process for {} ('{}')",
+            state.candidate.stash_str(),
+            state.candidate.node_name().as_str()
+        );
+
         let mut jury =
             RequirementsJudgement::<T>::new(&state, &self.requirements, self.store.clone())?;
 
@@ -97,7 +103,10 @@ where
         }
 
         // Requirement: Node uptime.
+        debug!("Checking node uptime");
         jury.judge_node_uptime(&state.candidate).await?;
+
+        // Requirement: Check client version
 
         Ok(jury.generate_report())
     }
