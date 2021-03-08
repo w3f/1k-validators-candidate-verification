@@ -255,20 +255,17 @@ pub struct TimetableStoreReader {
 impl TimetableStoreReader {
     pub async fn find_entries(&self, name: Option<&str>) -> Result<Vec<Timetable>> {
         let filter = if let Some(name) = name {
-            panic!("NO");
+            doc! {
+                "node_name": format!("/{}/i", name),
+                "_id": 0,
+            }
         } else {
             doc! {
                 "_id": 0,
             }
         };
 
-        let mut cursor = self
-            .coll
-            .find(
-                filter,
-                None,
-            )
-            .await?;
+        let mut cursor = self.coll.find(filter, None).await?;
 
         let mut timetables = vec![];
         for doc in cursor.next().await {

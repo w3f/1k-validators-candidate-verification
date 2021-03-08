@@ -44,9 +44,7 @@ async fn handler(
         .map_err(|err| WebError::internal().into())
 }
 
-pub fn start_rest_api(addr: &'static str) -> std::result::Result<(), anyhow::Error> {
-    std::thread::spawn(move || {
-        actix_web::rt::System::new().block_on(async move {
+pub async fn start_rest_api(addr: &'static str) -> std::result::Result<(), anyhow::Error> {
             let state = MongoState {
                 client: MongoClient::new("mongodb://localhost:27017/", "downtime_tracking").await?,
             };
@@ -55,11 +53,6 @@ pub fn start_rest_api(addr: &'static str) -> std::result::Result<(), anyhow::Err
                 .bind(addr)?
                 .shutdown_timeout(5)
                 .run()
-                .await?;
-
-            crate::Result::Ok(())
-        })
-    });
-
-    Ok(())
+                .await
+                .map_err(|err| err.into())
 }

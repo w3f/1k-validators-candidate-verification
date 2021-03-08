@@ -9,7 +9,6 @@ use lib::{
     TelemetryWatcherConfig, TimetableStoreConfig,
 };
 use std::fs::read_to_string;
-use tokio::time::{self, Duration};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -79,7 +78,7 @@ struct CandidateVerifierConfig {
     requirements_config: RequirementsConfig<u128>,
 }
 
-#[tokio::main]
+#[actix_web::main]
 async fn main() -> Result<()> {
     env_logger::Builder::new()
         .filter_module("candidate_verifier", log::LevelFilter::Debug)
@@ -135,10 +134,5 @@ async fn main() -> Result<()> {
         }
     }
 
-    start_rest_api("127.0.0.1:5555")?;
-
-    // Hold it here forever.
-    loop {
-        time::sleep(Duration::from_secs(60)).await;
-    }
+    start_rest_api("127.0.0.1:5555").await
 }
