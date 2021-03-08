@@ -28,3 +28,4 @@ mongodb = "2.0.0-alpha"
 bson = "1.2.0"
 substrate-subxt = { git = "https://github.com/lamafab/substrate-subxt.git", branch = "pallet-identity" }
 sp-arithmetic = "3.0.0"
+actix-web = "3.0.0"
