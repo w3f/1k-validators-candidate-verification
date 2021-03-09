@@ -11,7 +11,7 @@ pub struct RestApiConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EndpointConfig {
-    pub uptime: bool,
+    pub downtime: bool,
 }
 
 #[derive(Clone)]
@@ -42,8 +42,8 @@ struct DowntimeQuery {
     name: Option<String>,
 }
 
-#[get("/uptime")]
-async fn handler(
+#[get("/downtime")]
+async fn downtime(
     query: web::Query<DowntimeQuery>,
     state: web::Data<MongoState>,
 ) -> Result<web::Json<Vec<Timetable>>> {
@@ -78,8 +78,8 @@ pub async fn start_rest_api(
     HttpServer::new(move || {
         let mut app = App::new().data(state.clone());
 
-        if endpoints.uptime {
-            app = app.service(handler);
+        if endpoints.downtime {
+            app = app.service(downtime);
         }
 
         app
