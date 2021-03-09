@@ -16,8 +16,7 @@ RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/bin/
 
 RUN cargo build --release
 
-RUN rm -f target/release/deps/*candidate-verifier*
-RUN rm -rf src
+RUN rm -rf src/
 
 COPY . .
 
@@ -37,8 +36,8 @@ WORKDIR /app
 RUN mkdir config
 
 COPY --from=builder /app/target/release/candidate-verifier .
-COPY config/service.yml .
-COPY config/kusama_candidates.yml .
-COPY config/polkadot_candidates.yml .
+COPY config/service.yml config/
+COPY config/kusama_candidates.yml config/
+COPY config/polkadot_candidates.yml config/
 
 CMD ["./candidate-verifier"]
