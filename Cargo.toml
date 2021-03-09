@@ -1,5 +1,5 @@
 [package]
-name = "telemetry-tracker"
+name = "candidate-verifier"
 version = "0.1.0"
 authors = ["lamafab <42901763+lamafab@users.noreply.github.com>"]
 edition = "2018"

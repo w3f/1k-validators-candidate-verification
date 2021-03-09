@@ -17,10 +17,11 @@ RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/bin/
 RUN cargo build --release
 
 RUN rm -rf src/
+RUN cargo clean -p candidate-verifier
 
 COPY . .
 
-RUN cargo build --release
+RUN cargo build -p candidate-verifier --release
 
 # # ------------------------------------------------------------------------------
 # # Final Stage
