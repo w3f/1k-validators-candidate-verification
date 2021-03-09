@@ -2,7 +2,7 @@ db_uri: "mongodb://localhost:27017/"
 db_name: "candidate_verification"
 rest_api:
   listen_addr: "localhost"
-  port: 1111
+  port: 8080
   endpoints:
     downtime: true
 services:
@@ -12,8 +12,8 @@ services:
       store_behavior:
         type: downtime_counter
         config:
-          # 5 minutes of absence before it starts increasing the downtime counter
-          threshold: 60
+          # 3 minutes of absence before it starts increasing the downtime counter
+          threshold: 180
           # 1 hour of allowed downtime per monitoring period.
           max_downtime: 3600
           # 1 week monitoring period. Downtime counter resets after that.
@@ -26,8 +26,8 @@ services:
       store_behavior:
         type: downtime_counter
         config:
-          # 5 minutes of absence before it starts increasing the downtime counter
-          threshold: 60
+          # 3 minutes of absence before it starts increasing the downtime counter
+          threshold: 180
           # 1 hour of allowed downtime per monitoring period.
           max_downtime: 3600
           # 1 week monitoring period. Downtime counter resets after that.
