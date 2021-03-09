@@ -1,5 +1,5 @@
 db_uri: "mongodb://localhost:27017/"
-db_name: "downtime_tracking"
+db_name: "candidate_verification"
 rest_api:
   listen_addr: "localhost"
   port: 1111

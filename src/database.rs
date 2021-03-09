@@ -103,6 +103,7 @@ pub struct Timetable {
     has_downtime_currently: bool,
     last_downtime_increase: Option<LogTimestamp>,
     start_period: LogTimestamp,
+    joined: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -394,8 +395,9 @@ impl TimetableStore {
         update.extend(
             doc! {
                 "$setOnInsert": {
-                    "start_period": now.to_bson()?,
                     "downtime": 0,
+                    "start_period": now.to_bson()?,
+                    "joined": now.to_bson()?,
                 }
             }
         );
