@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Cargo Build Stage
+# Cargo Dependency Build Stage
 # ------------------------------------------------------------------------------
 
 FROM rust:1.46.0 AS builder
@@ -9,19 +9,17 @@ WORKDIR /app
 COPY Cargo.lock Cargo.lock
 COPY Cargo.toml Cargo.toml
 
-RUN mkdir src/
-RUN mkdir src/bin
+RUN mkdir -p src/bin
 RUN touch src/lib.rs
 RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/bin/candidate_verifier.rs
 
 RUN cargo build --release
 
-RUN rm -rf src/
 RUN cargo clean -p candidate-verifier
 
 COPY . .
 
-RUN cargo build -p candidate-verifier --release
+RUN cargo build --release
 
 # # ------------------------------------------------------------------------------
 # # Final Stage
@@ -36,7 +34,7 @@ WORKDIR /app
 
 RUN mkdir config
 
-COPY --from=builder /app/target/release/candidate-verifier .
+COPY --from=0 /app/target/release/candidate-verifier .
 COPY config/service.yml config/
 COPY config/kusama_candidates.yml config/
 COPY config/polkadot_candidates.yml config/
