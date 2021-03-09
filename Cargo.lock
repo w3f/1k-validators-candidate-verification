@@ -716,6 +716,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "631ae5198c9be5e753e5cc215e1bd73c2b466a3565173db433f52bb9d3e66dba"
 
 [[package]]
+name = "candidate-verifier"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "anyhow",
+ "bson",
+ "env_logger",
+ "futures",
+ "log",
+ "mongodb",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sp-arithmetic",
+ "substrate-subxt",
+ "thiserror",
+ "tokio 1.2.0",
+ "tokio-tungstenite",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4174,27 +4195,6 @@ name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
-
-[[package]]
-name = "telemetry-tracker"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "anyhow",
- "bson",
- "env_logger",
- "futures",
- "log",
- "mongodb",
- "serde",
- "serde_json",
- "serde_yaml",
- "sp-arithmetic",
- "substrate-subxt",
- "thiserror",
- "tokio 1.2.0",
- "tokio-tungstenite",
-]
 
 [[package]]
 name = "tempfile"

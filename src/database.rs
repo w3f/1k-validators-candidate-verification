@@ -392,15 +392,13 @@ impl TimetableStore {
         };
 
         // Add default values.
-        update.extend(
-            doc! {
-                "$setOnInsert": {
-                    "downtime": 0,
-                    "start_period": now.to_bson()?,
-                    "joined": now.to_bson()?,
-                }
+        update.extend(doc! {
+            "$setOnInsert": {
+                "downtime": 0,
+                "start_period": now.to_bson()?,
+                "joined": now.to_bson()?,
             }
-        );
+        });
 
         // Update last event timestamp.
         self.coll

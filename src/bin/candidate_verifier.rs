@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate log;
 #[macro_use]
+extern crate anyhow;
+#[macro_use]
 extern crate serde;
 
 use lib::{
@@ -85,7 +87,14 @@ async fn main() -> Result<()> {
         .filter_module("lib", log::LevelFilter::Debug)
         .init();
 
-    let root_config: RootConfig = serde_yaml::from_str(&read_to_string("config/service.yml")?)?;
+    info!("Opening config file");
+    let config = read_to_string("config/service.yml")
+        .or_else(|_| read_to_string("/etc/candidate_verifier/service.yml"))
+        .map_err(|err| {
+            anyhow!("Failed to open config at 'config/service.yml' or '/etc/candidate_verifier/service.yml': {:?}", err)
+        })?;
+
+    let root_config: RootConfig = serde_yaml::from_str(&config)?;
 
     // Process telemetry tracker configuration.
     for service in root_config.services {
