@@ -12,13 +12,11 @@ COPY Cargo.toml Cargo.toml
 RUN mkdir src/
 RUN mkdir src/bin
 RUN touch src/lib.rs
-RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
+RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/bin/candidate_verifier.rs
 
 RUN cargo build --release
 
-RUN rm -f target/release/deps/*watcher*
-RUN rm -f target/release/deps/*staking*
-RUN rm -rf src
+RUN rm -rf src/
 
 COPY . .
 
@@ -35,9 +33,11 @@ RUN update-ca-certificates --fresh
 
 WORKDIR /app
 
-COPY --from=builder /app/target/release/candidate-verifier /usr/local/bin
-COPY config/service.yml ./config/service.yml
-COPY config/kusama_candidates.yml ./config/kusama_candidates.yml
-COPY config/polkadot_candidates.yml ./config/polkadot_candidates.yml
+RUN mkdir config
 
-CMD ["/usr/local/bin/candidate-verifier"]
+COPY --from=builder /app/target/release/candidate-verifier .
+COPY config/service.yml config/
+COPY config/kusama_candidates.yml config/
+COPY config/polkadot_candidates.yml config/
+
+CMD ["./candidate-verifier"]
