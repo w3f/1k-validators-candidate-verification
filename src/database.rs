@@ -12,9 +12,10 @@ use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_states";
+const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_judgement_states";
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
 const TIMETABLE_STORE_COLLECTION: &'static str = "time_tables";
+const ERA_TRACKER_STORE: &'static str = "era_tracker";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredStash;
@@ -158,6 +159,41 @@ impl MongoClient {
                 network.as_ref()
             )),
         }
+    }
+    pub fn get_era_tracker(&self, network: &Network) -> EraTracker {
+        EraTracker {
+            coll: self
+                .db
+                .collection(&format!("{}_{}", ERA_TRACKER_STORE, network.as_ref())),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EraTracker {
+    coll: Collection,
+}
+
+impl EraTracker {
+    pub async fn is_new_era(&self, era_index: u32) -> Result<bool> {
+        let outcome = self
+            .coll
+            .update_one(
+                doc! {
+                    "context": "current_event",
+                },
+                doc! {
+                    "current_era": era_index.to_bson()?,
+                },
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
+            )
+            .await?;
+
+        Ok(outcome.modified_count > 0)
     }
 }
 

@@ -273,6 +273,7 @@ pub async fn run_requirements_proceeding(
 
     let candidate_store = store.get_candidate_state_store(&config.network);
     let time_table_reader = store.get_time_table_store_reader(&config.network);
+    let era_tracker = store.get_era_tracker(&config.network);
 
     match config.network {
         Network::Polkadot => {
@@ -280,8 +281,11 @@ pub async fn run_requirements_proceeding(
                 &config.rpc_hostname,
                 config.requirements_config,
                 time_table_reader,
+                era_tracker,
             )
             .await?;
+
+            proceeding.wait_for_era_change().await?;
 
             for candidate in candidates {
                 let state = candidate_store
@@ -301,8 +305,11 @@ pub async fn run_requirements_proceeding(
                 &config.rpc_hostname,
                 config.requirements_config,
                 time_table_reader,
+                era_tracker,
             )
             .await?;
+
+            proceeding.wait_for_era_change().await?;
 
             for candidate in candidates {
                 let state = candidate_store
@@ -373,8 +380,6 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn requirements_proceeding() {
-        //env_logger::init();
-
         let config = RequirementsProceedingConfig {
             db_uri: "mongodb://localhost:27017/".to_string(),
             db_name: "test_candidate_requirements".to_string(),

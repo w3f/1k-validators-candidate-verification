@@ -1,4 +1,4 @@
-use crate::database::{CandidateState, TimetableStoreReader};
+use crate::database::{CandidateState, EraTracker, TimetableStoreReader};
 use crate::jury::{RequirementsConfig, RequirementsJudgement, RequirementsJudgementReport};
 use crate::system::Candidate;
 use crate::Result;
@@ -7,9 +7,10 @@ use substrate_subxt::balances::Balances;
 use substrate_subxt::identity::{Identity, IdentityOfStoreExt};
 use substrate_subxt::sp_core::crypto::{AccountId32, Ss58Codec};
 use substrate_subxt::staking::{
-    BondedStoreExt, LedgerStoreExt, PayeeStoreExt, Staking, ValidatorsStoreExt,
+    BondedStoreExt, CurrentEraStoreExt, LedgerStoreExt, PayeeStoreExt, Staking, ValidatorsStoreExt,
 };
 use substrate_subxt::{Client, ClientBuilder, Runtime};
+use tokio::time::{self, Duration};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NetworkAccount<T>(T);
@@ -37,6 +38,7 @@ pub struct RequirementsProceeding<T: Runtime + Balances> {
     client: Client<T>,
     requirements: RequirementsConfig<T::Balance>,
     store: TimetableStoreReader,
+    era_tracker: EraTracker,
 }
 
 impl<T: Runtime + Balances + Identity + Staking> RequirementsProceeding<T>
@@ -47,6 +49,7 @@ where
         rpc_hostname: &str,
         requirements: RequirementsConfig<T::Balance>,
         store: TimetableStoreReader,
+        era_tracker: EraTracker,
     ) -> Result<Self> {
         Ok(RequirementsProceeding {
             client: ClientBuilder::<T>::new()
@@ -56,7 +59,21 @@ where
                 .await?,
             requirements: requirements,
             store: store,
+            era_tracker: era_tracker,
         })
+    }
+    pub async fn wait_for_era_change(&self) -> Result<()> {
+        let current = self
+            .client
+            .current_era(None)
+            .await?
+            .ok_or(anyhow!("failed to retrieve Era from on-chain service"))?;
+
+        while !self.era_tracker.is_new_era(current).await? {
+            time::sleep(Duration::from_secs(10)).await;
+        }
+
+        Ok(())
     }
     pub async fn proceed_requirements(
         &self,
