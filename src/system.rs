@@ -162,7 +162,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                     }
                 });
 
-                // TODO: If the downtime processor exists, the full application should exit.
+                // TODO: If the downtime processor exits, the full application should exit.
             }
             _ => {}
         }
