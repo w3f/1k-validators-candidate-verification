@@ -191,7 +191,7 @@ where
         }
     }
     pub fn judge_commission(&mut self, commission: Perbill) {
-        if commission.deconstruct() <= (self.config.max_commission * 1_000_000) {
+        if commission.deconstruct() <= (self.config.max_commission * 10_000_000) {
             self.judgments.push(Judgement::Ok(Context::Commission));
         } else {
             self.judgments.push(Judgement::Fault(Context::Commission));
