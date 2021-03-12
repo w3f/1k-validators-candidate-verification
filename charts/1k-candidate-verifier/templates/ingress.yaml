@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: {{ include "1k-candidate-verifier.name" . }}
@@ -20,5 +20,5 @@ spec:
       paths:
       - path: /
         backend:
-          serviceName: {{ .Release.Name }}
+          serviceName: {{ include "1k-candidate-verifier.name" . }}
           servicePort: {{ .Values.api.port }}
