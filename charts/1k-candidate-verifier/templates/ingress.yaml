@@ -21,4 +21,4 @@ spec:
       - path: /
         backend:
           serviceName: {{ .Release.Name }}
-          servicePort: {{ .Values.apiPort }}
+          servicePort: {{ .Values.api.port }}
