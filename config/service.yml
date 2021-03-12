@@ -4,6 +4,7 @@ rest_api:
   listen_addr: "localhost"
   port: 8080
   endpoints:
+    health: true
     downtime: true
 services:
   - telemetry_watcher:

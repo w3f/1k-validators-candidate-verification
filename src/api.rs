@@ -1,6 +1,6 @@
 use crate::database::{MongoClient, Timetable};
 use crate::system::Network;
-use actix_web::{get, web, App, HttpServer, ResponseError, Result};
+use actix_web::{get, web, App, HttpServer, ResponseError, Result, HttpResponse};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RestApiConfig {
@@ -11,6 +11,7 @@ pub struct RestApiConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EndpointConfig {
+    pub health: bool,
     pub downtime: bool,
 }
 
@@ -40,6 +41,11 @@ impl WebError {
 struct DowntimeQuery {
     network: Network,
     name: Option<String>,
+}
+
+#[get("/health")]
+async fn health() -> HttpResponse {
+    HttpResponse::Ok().body("OK")
 }
 
 #[get("/downtime")]
@@ -80,6 +86,9 @@ pub async fn start_rest_api(
 
         if endpoints.downtime {
             app = app.service(downtime);
+        }
+        if endpoints.health {
+            app = app.service(health);
         }
 
         app
