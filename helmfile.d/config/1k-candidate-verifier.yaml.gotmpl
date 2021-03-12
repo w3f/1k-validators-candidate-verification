@@ -1,0 +1,20 @@
+environment: {{ .Environment.Name }}
+
+domain: candidate-verifier.w3f.community
+
+apiPort: 8080
+
+{{ if eq .Environment.Name "ci" }}
+image:
+  tag: {{ env "CIRCLE_SHA1" | default "kind" }}
+{{ else if eq .Environment.Name "local" }}
+image:
+  repo: localhost:5000/1k-candidate-verifier
+  tag: latest
+{{ end }}
+
+{{ if eq .Environment.Name "production" }}
+config: |
+  {{ env "API_SERVICE" }}
+{{ end }}
+

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "1k-candidate-verifier.name" . }}
+  labels:
+    app: {{ include "1k-candidate-verifier.name" . }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: {{ include "1k-candidate-verifier.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "1k-candidate-verifier.name" . }}
+    spec:
+      containers:
+      - name: {{ include "1k-candidate-verifier.name" . }}
+        image: {{ .Values.image.repo }}:{{ .Values.image.tag }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: api
+          containerPort: {{ .Values.api.port }}
+        {{ if .Values.api.livenessProbe.enabled }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.api.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        {{ end }}  
+        {{- if and ( ne .Values.environment "ci" ) ( ne .Values.environment "local" ) }}
+        resources:
+{{ toYaml .Values.api.resources | indent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/candidate_verifier
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "1k-candidate-verifier.name" . }}    
