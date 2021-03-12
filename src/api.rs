@@ -1,6 +1,6 @@
 use crate::database::{MongoClient, Timetable};
 use crate::system::Network;
-use actix_web::{get, web, App, HttpServer, ResponseError, Result, HttpResponse};
+use actix_web::{get, web, App, HttpResponse, HttpServer, ResponseError, Result};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RestApiConfig {

@@ -316,13 +316,7 @@ impl TimetableStoreReader {
         has_downtime_violation(candidate, max_downtime, &self.coll).await
     }
     pub async fn get_majority_client_version(&self) -> Result<Option<NodeVersion>> {
-        let mut cursor = self
-            .coll
-            .find(
-                doc! {},
-                None,
-            )
-            .await?;
+        let mut cursor = self.coll.find(doc! {}, None).await?;
 
         let mut observed_versions: HashMap<NodeVersion, u32> = HashMap::new();
         while let Some(doc) = cursor.next().await {
@@ -448,7 +442,7 @@ impl TimetableStore {
                 "$set": {
                     "last_event": now.to_bson()?,
                     "has_downtime_currently": false,
-                    "client_version": version.to_bson()?,
+                    "client_version": version.strip_os_suffix()?.to_bson()?,
                 }
             }
         } else {

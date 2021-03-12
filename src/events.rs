@@ -57,6 +57,17 @@ impl NodeId {
     }
 }
 
+impl NodeVersion {
+    // Converts `0.8.29-2494dec2-x86_64-linux-gnu` into `0.8.29`.
+    pub fn strip_os_suffix(self) -> Result<NodeVersion> {
+        let version = self.0.split("-").nth(0).ok_or(anyhow!(
+            "failed to strip client version OS suffix, invalid format"
+        ))?;
+
+        Ok(NodeVersion(version.to_string()))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content")]
 #[serde(rename_all = "snake_case")]
