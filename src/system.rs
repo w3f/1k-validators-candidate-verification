@@ -1,4 +1,4 @@
-use crate::database::{CandidateState, MongoClient, TimetableStoreConfig};
+use crate::database::{CandidateState, MongoClient, TimetableStore, TimetableStoreConfig};
 use crate::events::{NodeName, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
@@ -135,31 +135,39 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 let network = config.network;
 
                 tokio::spawn(async move {
-                    loop {
-                        match processor.process_time_tables().await {
-                            Ok(metadata) => {
-                                for entry in metadata {
-                                    debug!("Detected downtime for '{}': added {} (total: {}, max allowed: {}, next reset: {})",
-                                        entry.node_name.as_str(),
-                                        entry.added_downtime,
-                                        entry.total_downtime,
-                                        entry.max_downtime,
-                                        entry.next_reset,
-                                    );
-                                }
-                            }
-                            Err(err) => {
-                                error!(
-                                    "Exiting downtime processing service: {:?} ({})",
-                                    err,
-                                    network.as_ref()
+                    async fn local(processor: &TimetableStore) -> Result<()> {
+                        loop {
+                            // Update downtime tracking.
+                            let metadata = processor.process_time_tables().await?;
+                            for entry in metadata {
+                                debug!("Detected downtime for '{}': added {} (total: {}, max allowed: {}, next reset: {})",
+                                    entry.node_name.as_str(),
+                                    entry.added_downtime,
+                                    entry.total_downtime,
+                                    entry.max_downtime,
+                                    entry.next_reset,
                                 );
-                                break;
                             }
-                        }
 
-                        time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;
+                            // Update majority client version tracking.
+                            if let Some(version) =
+                                processor.process_client_version_majority().await?
+                            {
+                                debug!("Majority client version: {}", version.as_str());
+                            } else {
+                                warn!("Majority client version not found");
+                            }
+
+                            time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;
+                        }
                     }
+
+                    let err = local(&processor).await.unwrap_err();
+                    error!(
+                        "Exiting downtime processing service: {:?} ({})",
+                        err,
+                        network.as_ref()
+                    );
                 });
 
                 // TODO: If the downtime processor exits, the full application should exit.

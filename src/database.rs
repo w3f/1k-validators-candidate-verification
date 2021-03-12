@@ -16,6 +16,7 @@ const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_judgement_stat
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
 const TIMETABLE_STORE_COLLECTION: &'static str = "time_tables";
 const ERA_TRACKER_STORE: &'static str = "era_tracker";
+const VERSION_MAJORITY_COLLECTION: &'static str = "version_majority";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegisteredStash;
@@ -145,6 +146,11 @@ impl MongoClient {
             coll: self.db.collection(&format!(
                 "{}_{}",
                 TIMETABLE_STORE_COLLECTION,
+                network.as_ref()
+            )),
+            coll_version_majority: self.db.collection(&format!(
+                "{}_{}",
+                VERSION_MAJORITY_COLLECTION,
                 network.as_ref()
             )),
             name_lookup: HashMap::new(),
@@ -315,33 +321,6 @@ impl TimetableStoreReader {
     ) -> Result<Option<(bool, i64)>> {
         has_downtime_violation(candidate, max_downtime, &self.coll).await
     }
-    pub async fn get_majority_client_version(&self) -> Result<Option<NodeVersion>> {
-        let mut cursor = self.coll.find(doc! {}, None).await?;
-
-        let mut observed_versions: HashMap<NodeVersion, u32> = HashMap::new();
-        while let Some(doc) = cursor.next().await {
-            let time_table: Timetable = from_document(doc?)?;
-            let version = time_table.client_version;
-
-            // Count occurrence.
-            observed_versions
-                .entry(version)
-                .and_modify(|occurences| *occurences += 1)
-                .or_insert(1);
-        }
-
-        // Find the client version with the most occurrences.
-        let mut m_version = None;
-        let mut m_count = 0;
-        for (version, count) in observed_versions {
-            if count > m_count {
-                m_version = Some(version);
-                m_count = count;
-            }
-        }
-
-        Ok(m_version)
-    }
 }
 
 async fn has_downtime_violation(
@@ -372,6 +351,7 @@ async fn has_downtime_violation(
 #[derive(Debug, Clone)]
 pub struct TimetableStore {
     coll: Collection,
+    coll_version_majority: Collection,
     name_lookup: HashMap<NodeId, NodeName>,
     config: TimetableStoreConfig,
 }
@@ -567,6 +547,52 @@ impl TimetableStore {
         }
 
         Ok(change_log)
+    }
+    pub async fn process_client_version_majority(&self) -> Result<Option<NodeVersion>> {
+        let mut cursor = self.coll.find(doc! {}, None).await?;
+
+        let mut observed_versions: HashMap<NodeVersion, u32> = HashMap::new();
+        while let Some(doc) = cursor.next().await {
+            let time_table: Timetable = from_document(doc?)?;
+            let version = time_table.client_version;
+
+            // Count occurrence.
+            observed_versions
+                .entry(version)
+                .and_modify(|occurences| *occurences += 1)
+                .or_insert(1);
+        }
+
+        // Find the client version with the most occurrences.
+        let mut m_version = None;
+        let mut m_count = 0;
+        for (version, count) in observed_versions {
+            if count > m_count {
+                m_version = Some(version);
+                m_count = count;
+            }
+        }
+
+        // Track version majority.
+        self.coll_version_majority
+            .update_one(
+                doc! {
+                    "client_version": {
+                        "$exists": true,
+                    },
+                },
+                doc! {
+                    "client_version": m_version.to_bson()?,
+                },
+                Some({
+                    let mut options = UpdateOptions::default();
+                    options.upsert = Some(true);
+                    options
+                }),
+            )
+            .await?;
+
+        Ok(m_version)
     }
     /// Convenience function. Is primarily used on [`TimetableStoreReader`].
     #[cfg(test)]
