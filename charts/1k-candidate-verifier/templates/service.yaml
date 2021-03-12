@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "1k-candidate-verifier.name" . }}
+  labels:
+    app: {{ include "1k-candidate-verifier.name" . }}
+spec:
+  ports:
+  - name: api
+    port: {{ .Values.api.port }}
+  selector:
+    app: {{ include "1k-candidate-verifier.name" . }}

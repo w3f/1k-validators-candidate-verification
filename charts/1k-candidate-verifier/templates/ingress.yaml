@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ include "1k-candidate-verifier.name" . }}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    {{ if .Values.certificate.enabled }}
+    cert-manager.io/cluster-issuer: letsencrypt
+    {{ end }}
+spec:
+  tls:
+  - hosts:
+      - {{ .Values.domain }}
+    secretName: {{ include "1k-candidate-verifier.tls-secret-name" . }}
+  rules:
+  - host: {{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: {{ .Release.Name }}
+          servicePort: {{ .Values.api.port }}

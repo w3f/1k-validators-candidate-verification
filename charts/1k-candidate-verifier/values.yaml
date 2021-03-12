@@ -1,0 +1,61 @@
+environment: production
+
+domain: otv.w3f.community
+
+api:
+  port: 8080
+  livenessProbe:
+    enabled: false
+  replicas: 1  
+
+image:
+  repo: web3f/1k-candidate-verifier
+  tag: v0.1.1
+
+certificate:
+  enabled: true
+
+config: |
+  {
+  "db_uri": "mongodb://username:password@otv-candidate-verifier-mongodb-0.otv-candidate-verifier-mongodb-headless:27017/otv",
+  "db_name": "otv",
+  "rest_api": {
+    "listen_addr": "localhost",
+    "port": 8080,
+    "endpoints": {
+      "downtime": true
+    }
+  },
+  "services": [
+    {
+      "telemetry_watcher": {
+        "telemetry_host": "wss://telemetry-backend.w3f.community/feed",
+        "network": "polkadot",
+        "store_behavior": {
+          "type": "downtime_counter",
+          "config": {
+            "threshold": 180,
+            "max_downtime": 3600,
+            "monitoring_period": 604800,
+            "candidate_file": "config/polkadot_candidates.yml"
+          }
+        }
+      }
+    },
+    {
+      "telemetry_watcher": {
+        "telemetry_host": "wss://telemetry-backend.w3f.community/feed",
+        "network": "kusama",
+        "store_behavior": {
+          "type": "downtime_counter",
+          "config": {
+            "threshold": 180,
+            "max_downtime": 3600,
+            "monitoring_period": 604800,
+            "candidate_file": "config/kusama_candidates.yml"
+          }
+        }
+      }
+    }
+  ]
+  }
