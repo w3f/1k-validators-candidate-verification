@@ -2,7 +2,8 @@ environment: {{ .Environment.Name }}
 
 domain: candidate-verifier.w3f.community
 
-apiPort: 8080
+api:
+  port: 8080
 
 {{ if eq .Environment.Name "ci" }}
 image:
