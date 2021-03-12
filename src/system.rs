@@ -135,46 +135,57 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 let network = config.network;
 
                 tokio::spawn(async move {
-                    async fn local(processor: &TimetableStore) -> Result<()> {
+                    async fn local(processor: &TimetableStore, network: &Network) -> Result<()> {
+                        // The client version majority of the nodes.
+                        let mut current_version: Option<NodeVersion> = None;
+
                         loop {
+                            // Timeout. Also allows the service to collect some
+                            // telemetry info first on startup.
+                            time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;
+
                             // Update downtime tracking.
                             let metadata = processor.process_time_tables().await?;
                             for entry in metadata {
-                                debug!("Detected downtime for '{}': added {} (total: {}, max allowed: {}, next reset: {})",
+                                debug!("Detected downtime for '{}': added {} (total: {}, max allowed: {}, next reset: {} ({}))",
                                     entry.node_name.as_str(),
                                     entry.added_downtime,
                                     entry.total_downtime,
                                     entry.max_downtime,
                                     entry.next_reset,
+                                    network.as_ref(),
                                 );
                             }
 
                             // Update majority client version tracking.
-                            let mut current_version: Option<NodeVersion> = None;
                             if let Some(version) =
                                 processor.process_client_version_majority().await?
                             {
-                                match &mut current_version {
-                                    None => debug!("Client version majority: {}", version.as_str()),
+                                match current_version {
+                                    None => debug!(
+                                        "Client version majority: {} ({})",
+                                        version.as_str(),
+                                        network.as_ref()
+                                    ),
                                     Some(current_version) => {
-                                        if *current_version != version {
+                                        if current_version != version {
                                             debug!(
-                                                "Client version majority changed to: {}",
-                                                version.as_str()
+                                                "Client version majority changed to: {} ({})",
+                                                version.as_str(),
+                                                network.as_ref(),
                                             );
-                                            *current_version = version;
                                         }
                                     }
                                 }
-                            } else {
-                                warn!("Client version majority not found");
-                            }
 
-                            time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;
+                                current_version = Some(version)
+                            } else {
+                                warn!("Client version majority not found ({})", network.as_ref());
+                            }
                         }
                     }
 
-                    let err = local(&processor).await.unwrap_err();
+                    let err = local(&processor, &network).await.unwrap_err();
                     error!(
                         "Exiting downtime processing service: {:?} ({})",
                         err,
