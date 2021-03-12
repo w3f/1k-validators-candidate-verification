@@ -1,5 +1,5 @@
 use crate::database::{CandidateState, MongoClient, TimetableStore, TimetableStoreConfig};
-use crate::events::{NodeName, TelemetryEvent};
+use crate::events::{NodeName, NodeVersion, TelemetryEvent};
 use crate::judge::RequirementsProceeding;
 use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
@@ -150,12 +150,24 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                             }
 
                             // Update majority client version tracking.
+                            let mut current_version: Option<NodeVersion> = None;
                             if let Some(version) =
                                 processor.process_client_version_majority().await?
                             {
-                                debug!("Majority client version: {}", version.as_str());
+                                match &mut current_version {
+                                    None => debug!("Client version majority: {}", version.as_str()),
+                                    Some(current_version) => {
+                                        if *current_version != version {
+                                            debug!(
+                                                "Client version majority changed to: {}",
+                                                version.as_str()
+                                            );
+                                            *current_version = version;
+                                        }
+                                    }
+                                }
                             } else {
-                                warn!("Majority client version not found");
+                                warn!("Client version majority not found");
                             }
 
                             time::sleep(Duration::from_secs(DOWNTIME_PROCESSOR_TIMEOUT)).await;
