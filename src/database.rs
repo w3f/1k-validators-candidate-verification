@@ -98,7 +98,7 @@ impl CandidateState {
 // TODO: Check for individual fields in tests.
 pub struct Timetable {
     node_name: NodeName,
-    client_version: String,
+    client_version: NodeVersion,
     last_event: LogTimestamp,
     downtime: i64,
     has_downtime_currently: bool,
@@ -314,6 +314,39 @@ impl TimetableStoreReader {
         max_downtime: i64,
     ) -> Result<Option<(bool, i64)>> {
         has_downtime_violation(candidate, max_downtime, &self.coll).await
+    }
+    pub async fn get_majority_client_version(&self) -> Result<Option<NodeVersion>> {
+        let mut cursor = self
+            .coll
+            .find(
+                doc! {},
+                None,
+            )
+            .await?;
+
+        let mut observed_versions: HashMap<NodeVersion, u32> = HashMap::new();
+        while let Some(doc) = cursor.next().await {
+            let time_table: Timetable = from_document(doc?)?;
+            let version = time_table.client_version;
+
+            // Count occurrence.
+            observed_versions
+                .entry(version)
+                .and_modify(|occurences| *occurences += 1)
+                .or_insert(1);
+        }
+
+        // Find the client version with the most occurrences.
+        let mut m_version = None;
+        let mut m_count = 0;
+        for (version, count) in observed_versions {
+            if count > m_count {
+                m_version = Some(version);
+                m_count = count;
+            }
+        }
+
+        Ok(m_version)
     }
 }
 
@@ -600,57 +633,6 @@ impl TelemetryEventStore {
         Ok(())
     }
     // TODO: Make use of this.
-    #[allow(unused)]
-    pub async fn get_majority_client_version(&self) -> Result<Option<NodeVersion>> {
-        let mut cursor = self
-            .coll
-            .find(
-                doc! {
-                    "events.event.type": "added_node",
-                    "events.event.content.details.version": {
-                        "$exists": true,
-                    }
-                },
-                None,
-            )
-            .await?;
-
-        let mut observed_versions = HashMap::new();
-        while let Some(doc) = cursor.next().await {
-            let node_activity: NodeActivity = from_document(doc?)?;
-
-            let mut version = None;
-            for log in node_activity.events {
-                match log.event {
-                    TelemetryEvent::AddedNode(event) => {
-                        version = Some(event.details.version);
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-
-            // Ignore if the version of the node could not be determined.
-            if let Some(version) = version {
-                observed_versions
-                    .entry(version)
-                    .and_modify(|occurences| *occurences += 1)
-                    .or_insert(1);
-            }
-        }
-
-        // Find the client version with the most occurrences.
-        let mut m_version = None;
-        let mut m_occurrences = 0;
-        for (version, occurrences) in observed_versions {
-            if occurrences > m_occurrences {
-                m_version = Some(version);
-                m_occurrences = occurrences;
-            }
-        }
-
-        Ok(m_version)
-    }
     #[cfg(test)]
     async fn drop(&self) {
         self.coll.drop(None).await.unwrap();
