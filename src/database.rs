@@ -791,47 +791,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_majority_client_version() {
-        // Create client.
-        let client = MongoClient::new(
-            "mongodb://localhost:27017/",
-            "test_get_majority_client_version",
-        )
-        .await
-        .unwrap()
-        .get_telemetry_event_store(&Network::Polkadot);
-
-        client.drop().await;
-
-        let messages = [
-            TelemetryEvent::AddedNode({
-                let mut event = AddedNodeEvent::alice();
-                event.details.version = NodeVersion::from("2.0".to_string());
-                event
-            }),
-            TelemetryEvent::AddedNode({
-                let mut event = AddedNodeEvent::alice();
-                event.details.version = NodeVersion::from("1.0".to_string());
-                event
-            }),
-            TelemetryEvent::AddedNode({
-                let mut event = AddedNodeEvent::alice();
-                event.details.version = NodeVersion::from("2.0".to_string());
-                event
-            }),
-        ];
-
-        for message in &messages {
-            client.store_event(message.clone()).await.unwrap();
-        }
-
-        let version = client.get_majority_client_version().await.unwrap().unwrap();
-        assert_eq!(version, NodeVersion::from("2.0".to_string()));
-
-        client.drop().await;
-    }
-
-    #[tokio::test]
     async fn track_event_only_uptime() {
         let config = TimetableStoreConfig {
             whitelist: vec![NodeName::alice(), NodeName::bob()]
