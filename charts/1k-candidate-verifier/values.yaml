@@ -5,12 +5,12 @@ domain: otv.w3f.community
 api:
   port: 8080
   livenessProbe:
-    enabled: false
+    enabled: true
   replicas: 1  
 
 image:
   repo: web3f/1k-candidate-verifier
-  tag: v0.1.1
+  tag: v0.1.2
 
 certificate:
   enabled: true
@@ -23,6 +23,7 @@ config: |
     "listen_addr": "localhost",
     "port": 8080,
     "endpoints": {
+      "health": true,
       "downtime": true
     }
   },
