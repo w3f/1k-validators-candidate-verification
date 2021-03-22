@@ -10,7 +10,7 @@ api:
 
 image:
   repo: web3f/1k-candidate-verifier
-  tag: v0.2.0
+  tag: v0.3.0
 
 certificate:
   enabled: true
