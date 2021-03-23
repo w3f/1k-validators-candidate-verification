@@ -4,7 +4,7 @@ use crate::{
     system::{Candidate, Network},
 };
 use crate::{Result, ToBson};
-use bson::from_document;
+use bson::{from_bson, from_document};
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
@@ -417,9 +417,7 @@ impl TimetableStore {
                                     doc! {
                                         "name": {
                                             "$exists": true,
-                                        },
-                                        "_id": 0,
-                                        "name": 1,
+                                        }
                                     },
                                     None,
                                 )
@@ -427,7 +425,13 @@ impl TimetableStore {
 
                             let mut coll_whitelist = vec![];
                             while let Some(doc) = cursor.next().await {
-                                coll_whitelist.push(from_document::<NodeName>(doc?)?);
+                                coll_whitelist.push(from_bson::<NodeName>(
+                                    doc?.get("name")
+                                        .ok_or(anyhow!(
+                                            "Field 'name' not found in candidate collection"
+                                        ))?
+                                        .clone(),
+                                )?);
                             }
 
                             // Update whitelist.
@@ -937,6 +941,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
@@ -1192,5 +1197,77 @@ mod tests {
         assert_eq!(downtime, 40);
 
         client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn whitelist_from_collection() {
+        let config = TimetableStoreConfig {
+            whitelist: WhiteList::Collection("candidates".to_string()),
+            threshold: 22,
+            max_downtime: 50,
+            monitoring_period: 100,
+        };
+
+        // Create client.
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_whitelist_from_collection",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
+
+        let candidates_collection = client.db.collection("candidates");
+
+        // Cleanup collection
+        candidates_collection.drop(None).await.unwrap();
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+        let eve = Candidate::eve();
+
+        candidates_collection
+            .insert_many(
+                vec![
+                    doc! {
+                        "name": alice.node_name().to_bson().unwrap(),
+                        "other_data": "1234",
+                    },
+                    doc! {
+                        "name": bob.node_name().to_bson().unwrap(),
+                        "other_data": "4321",
+                    },
+                ],
+                None,
+            )
+            .await
+            .unwrap();
+
+        let events = [
+            TelemetryEvent::AddedNode(AddedNodeEvent::alice()),
+            TelemetryEvent::AddedNode(AddedNodeEvent::bob()),
+            // Non-whitelisted
+            TelemetryEvent::AddedNode(AddedNodeEvent::eve()),
+        ];
+
+        for event in &events {
+            client.track_event(event.clone()).await.unwrap();
+
+            client.process_time_tables().await.unwrap();
+        }
+
+        // Check tracked entries.
+        assert!(client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .is_some());
+        assert!(client.has_downtime_violation(&bob).await.unwrap().is_some());
+        // Non-whitelisted
+        assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
+
+        client.drop().await;
+        candidates_collection.drop(None).await.unwrap();
     }
 }
