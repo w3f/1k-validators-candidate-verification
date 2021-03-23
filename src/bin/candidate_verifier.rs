@@ -120,8 +120,6 @@ async fn main() -> Result<()> {
     for service in root_config.services {
         match service {
             ServiceType::TelemetryWatcher(config) => {
-                let is_scoped = if config.db_uri.is_some() { true } else { false };
-
                 // Check for custom db configuration or use the global settings.
                 let db_uri = config
                     .db_uri
@@ -131,9 +129,7 @@ async fn main() -> Result<()> {
                     .ok_or(anyhow!("No database is configured for service"))?;
 
                 // Track the db info for the REST API.
-                if is_scoped {
-                    db_scopes.push((config.network, db_uri.clone(), db_name.clone()));
-                }
+                db_scopes.push((config.network, db_uri.clone(), db_name.clone()));
 
                 let specialized = TelemetryWatcherConfig {
                     db_uri: db_uri,
