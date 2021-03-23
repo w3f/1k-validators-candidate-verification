@@ -143,6 +143,7 @@ impl MongoClient {
         network: &Network,
     ) -> TimetableStore {
         TimetableStore {
+            db: self.db.clone(),
             coll: self.db.collection(&format!(
                 "{}_{}",
                 TIMETABLE_STORE_COLLECTION,
@@ -155,6 +156,8 @@ impl MongoClient {
             )),
             name_lookup: HashMap::new(),
             config: config,
+            coll_whitelist: vec![],
+            last_whitelist_update: None,
         }
     }
     pub fn get_time_table_store_reader(&self, network: &Network) -> TimetableStoreReader {
@@ -356,10 +359,13 @@ async fn has_downtime_violation(
 
 #[derive(Debug, Clone)]
 pub struct TimetableStore {
+    db: Database,
     coll: Collection,
     coll_version_majority: Collection,
     name_lookup: HashMap<NodeId, NodeName>,
     config: TimetableStoreConfig,
+    coll_whitelist: Vec<NodeName>,
+    last_whitelist_update: Option<LogTimestamp>,
 }
 
 impl TimetableStore {
@@ -392,7 +398,46 @@ impl TimetableStore {
                         }
                     }
                     WhiteList::Collection(collection) => {
-                        unimplemented!()
+                        // Determine whether the whitelist should be updated
+                        let mut fetch_new = false;
+                        if let Some(tmstp) = self.last_whitelist_update {
+                            if tmstp < LogTimestamp::new() - LogTimestamp(60) {
+                                fetch_new = true;
+                            }
+                        } else {
+                            fetch_new = true;
+                        }
+
+                        // Update the whitelist
+                        if fetch_new {
+                            let mut cursor = self
+                                .db
+                                .collection(collection)
+                                .find(
+                                    doc! {
+                                        "name": {
+                                            "$exists": true,
+                                        },
+                                        "id": 0,
+                                        "name": 1,
+                                    },
+                                    None,
+                                )
+                                .await?;
+
+                            let mut coll_whitelist = vec![];
+                            while let Some(doc) = cursor.next().await {
+                                coll_whitelist.push(from_document::<NodeName>(doc?)?);
+                            }
+
+                            // Update whitelist.
+                            self.coll_whitelist = coll_whitelist;
+                        }
+
+                        // Check whitelist
+                        if !self.coll_whitelist.contains(&node_name) {
+                            return Ok(());
+                        }
                     }
                 }
 
