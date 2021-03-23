@@ -114,15 +114,26 @@ async fn main() -> Result<()> {
         })?;
 
     let root_config: RootConfig = serde_yaml::from_str(&config)?;
+    let mut db_scopes = vec![];
 
     // Process telemetry tracker configuration.
     for service in root_config.services {
         match service {
             ServiceType::TelemetryWatcher(config) => {
+                let is_scoped = if config.db_uri.is_some() { true } else { false };
+
+                // Check for custom db configuration or use the global settings.
+                let db_uri = config.db_uri.unwrap_or(root_config.db_uri.clone());
+                let db_name = config.db_name.unwrap_or(root_config.db_name.clone());
+
+                // Track the db info for the REST API.
+                if is_scoped {
+                    db_scopes.push((config.network, db_uri.clone(), db_name.clone()));
+                }
+
                 let specialized = TelemetryWatcherConfig {
-                    // Check for custom db configuration or use the global settings.
-                    db_uri: config.db_uri.unwrap_or(root_config.db_uri.clone()),
-                    db_name: config.db_name.unwrap_or(root_config.db_name.clone()),
+                    db_uri: db_uri,
+                    db_name: db_name,
                     telemetry_host: config.telemetry_host.clone(),
                     network: config.network,
                     store_behavior: config
@@ -167,6 +178,7 @@ async fn main() -> Result<()> {
         root_config.rest_api,
         &root_config.db_uri,
         &root_config.db_name,
+        db_scopes,
     )
     .await
 }
