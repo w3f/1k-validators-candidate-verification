@@ -15,8 +15,6 @@ use std::fs::read_to_string;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 struct RootConfig {
-    db_uri: String,
-    db_name: String,
     services: Vec<ServiceType>,
     rest_api: RestApiConfig,
 }
@@ -93,6 +91,8 @@ enum CandidateSource {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 struct CandidateVerifierConfig {
+    db_uri: Option<String>,
+    db_name: Option<String>,
     rpc_hostname: String,
     network: Network,
     candidate_file: String,
@@ -123,8 +123,12 @@ async fn main() -> Result<()> {
                 let is_scoped = if config.db_uri.is_some() { true } else { false };
 
                 // Check for custom db configuration or use the global settings.
-                let db_uri = config.db_uri.unwrap_or(root_config.db_uri.clone());
-                let db_name = config.db_name.unwrap_or(root_config.db_name.clone());
+                let db_uri = config
+                    .db_uri
+                    .ok_or(anyhow!("No database is configured for service"))?;
+                let db_name = config
+                    .db_name
+                    .ok_or(anyhow!("No database is configured for service"))?;
 
                 // Track the db info for the REST API.
                 if is_scoped {
@@ -151,8 +155,12 @@ async fn main() -> Result<()> {
             }
             ServiceType::CandidateVerifier(config) => {
                 let specialized = RequirementsProceedingConfig {
-                    db_uri: root_config.db_uri.clone(),
-                    db_name: root_config.db_name.clone(),
+                    db_uri: config
+                        .db_uri
+                        .ok_or(anyhow!("No database is configured for service"))?,
+                    db_name: config
+                        .db_name
+                        .ok_or(anyhow!("No database is configured for service"))?,
                     rpc_hostname: config.rpc_hostname,
                     requirements_config: config.requirements_config,
                     network: config.network,
@@ -174,11 +182,5 @@ async fn main() -> Result<()> {
         }
     }
 
-    start_rest_api(
-        root_config.rest_api,
-        &root_config.db_uri,
-        &root_config.db_name,
-        db_scopes,
-    )
-    .await
+    start_rest_api(root_config.rest_api, db_scopes).await
 }

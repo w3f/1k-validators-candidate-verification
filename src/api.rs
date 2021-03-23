@@ -18,7 +18,6 @@ pub struct EndpointConfig {
 
 #[derive(Clone)]
 struct MongoState {
-    client: MongoClient,
     scoped: HashMap<Network, MongoClient>,
 }
 
@@ -58,7 +57,11 @@ async fn downtime(
     let client = if let Some(scoped_client) = state.scoped.get(&query.network) {
         scoped_client
     } else {
-        &state.client
+        error!(
+            "No database is configured for {} downtime tracking",
+            query.network.as_ref()
+        );
+        return Err(WebError::internal().into());
     };
 
     let store = client.get_time_table_store_reader(&query.network);
@@ -78,8 +81,6 @@ async fn downtime(
 
 pub async fn start_rest_api(
     config: RestApiConfig,
-    db_uri: &str,
-    db_name: &str,
     db_scopes: Vec<(Network, String, String)>,
 ) -> std::result::Result<(), anyhow::Error> {
     let mut scoped = HashMap::new();
@@ -87,10 +88,7 @@ pub async fn start_rest_api(
         scoped.insert(network, MongoClient::new(&db_uri, &db_name).await?);
     }
 
-    let state = MongoState {
-        client: MongoClient::new(db_uri, db_name).await?,
-        scoped: scoped,
-    };
+    let state = MongoState { scoped: scoped };
 
     let listen_addr = config.listen_addr;
     let port = config.port;
