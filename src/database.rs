@@ -551,7 +551,8 @@ impl TimetableStore {
         while let Some(doc) = cursor.next().await {
             let timetable: Timetable = from_document(doc?)?;
 
-            // Determine the additional downtime from the last last_downtime_increase or last event until now.
+            // Determine the additional downtime from the last
+            // last_downtime_increase or last event until now.
             let add_downtime =
                 if let Some(last_downtime_increase) = timetable.last_downtime_increase {
                     if timetable.has_downtime_currently {
@@ -570,17 +571,19 @@ impl TimetableStore {
                 }
             };
 
-            // Check if the monitoring period has completed and reset, if appropriate.
+            // Check if the monitoring period has completed and reset, if
+            // appropriate.
             if timetable.start_period.as_secs() <= now.as_secs() - self.config.monitoring_period {
                 update.extend(doc! {
                     "$set": {
-                        // Start from zero, but adding the new downtime.
+                        // Start from zero, but add the new downtime.
                         "downtime": add_downtime.to_bson()?,
                         "start_period": now.to_bson()?,
                     }
                 });
             } else {
-                // Set the current last_downtime_increase at which the downtime was counted.
+                // Set the current last_downtime_increase at which the downtime
+                // was counted.
                 update.extend(doc! {
                     "$inc": {
                         "downtime": add_downtime.to_bson()?,

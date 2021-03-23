@@ -91,7 +91,7 @@ pub enum StoreBehavior {
 
 pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()> {
     async fn local(config: &TelemetryWatcherConfig) -> Result<()> {
-        info!("Opening MongoDB client to database {}", &config.db_name);
+        info!("Opening MongoDB client to database '{}' on '{}'", config.db_name, config.db_uri);
         let client = MongoClient::new(&config.db_uri, &config.db_name).await?;
 
         let telemetry_event_store = client.get_telemetry_event_store(&config.network);
