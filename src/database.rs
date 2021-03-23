@@ -418,7 +418,7 @@ impl TimetableStore {
                                         "name": {
                                             "$exists": true,
                                         },
-                                        "id": 0,
+                                        "_id": 0,
                                         "name": 1,
                                     },
                                     None,
@@ -852,9 +852,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_only_uptime() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
@@ -951,9 +953,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_downtime_no_punish() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
@@ -1027,9 +1031,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_downtime_do_punish() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
@@ -1109,9 +1115,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_downtime_reset_period() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 22,
             max_downtime: 50,
             monitoring_period: 100,
