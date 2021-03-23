@@ -8,15 +8,13 @@ extern crate serde;
 use lib::{
     read_candidates, run_requirements_proceeding, run_telemetry_watcher, start_rest_api, Network,
     RequirementsConfig, RequirementsProceedingConfig, RestApiConfig, Result, StoreBehavior,
-    TelemetryWatcherConfig, TimetableStoreConfig,
+    TelemetryWatcherConfig, TimetableStoreConfig, WhiteList,
 };
 use std::fs::read_to_string;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 struct RootConfig {
-    db_uri: String,
-    db_name: String,
     services: Vec<ServiceType>,
     rest_api: RestApiConfig,
 }
@@ -51,10 +49,19 @@ impl RawStoreBehavior {
             RawStoreBehavior::Store => StoreBehavior::Store,
             RawStoreBehavior::DowntimeCounter(config) => StoreBehavior::Counter({
                 TimetableStoreConfig {
-                    whitelist: read_candidates(&config.candidate_file, network)?
-                        .into_iter()
-                        .map(|c| c.node_name().clone())
-                        .collect(),
+                    whitelist: {
+                        match config.candidate_source {
+                            CandidateSource::CandidateFile(file) => WhiteList::List(
+                                read_candidates(&file, network)?
+                                    .into_iter()
+                                    .map(|c| c.node_name().clone())
+                                    .collect(),
+                            ),
+                            CandidateSource::CandidateCollection(collection) => {
+                                WhiteList::Collection(collection)
+                            }
+                        }
+                    },
                     threshold: config.threshold,
                     max_downtime: config.max_downtime,
                     monitoring_period: config.monitoring_period,
@@ -70,12 +77,22 @@ struct RawCounterConfig {
     threshold: i64,
     max_downtime: i64,
     monitoring_period: i64,
-    candidate_file: String,
+    #[serde(flatten)]
+    candidate_source: CandidateSource,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum CandidateSource {
+    CandidateFile(String),
+    CandidateCollection(String),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 struct CandidateVerifierConfig {
+    db_uri: Option<String>,
+    db_name: Option<String>,
     rpc_hostname: String,
     network: Network,
     candidate_file: String,
@@ -97,15 +114,26 @@ async fn main() -> Result<()> {
         })?;
 
     let root_config: RootConfig = serde_yaml::from_str(&config)?;
+    let mut db_scopes = vec![];
 
     // Process telemetry tracker configuration.
     for service in root_config.services {
         match service {
             ServiceType::TelemetryWatcher(config) => {
+                // Check for custom db configuration or use the global settings.
+                let db_uri = config
+                    .db_uri
+                    .ok_or(anyhow!("No database is configured for service"))?;
+                let db_name = config
+                    .db_name
+                    .ok_or(anyhow!("No database is configured for service"))?;
+
+                // Track the db info for the REST API.
+                db_scopes.push((config.network, db_uri.clone(), db_name.clone()));
+
                 let specialized = TelemetryWatcherConfig {
-                    // Check for custom db configuration or use the global settings.
-                    db_uri: config.db_uri.unwrap_or(root_config.db_uri.clone()),
-                    db_name: config.db_name.unwrap_or(root_config.db_name.clone()),
+                    db_uri: db_uri,
+                    db_name: db_name,
                     telemetry_host: config.telemetry_host.clone(),
                     network: config.network,
                     store_behavior: config
@@ -123,8 +151,12 @@ async fn main() -> Result<()> {
             }
             ServiceType::CandidateVerifier(config) => {
                 let specialized = RequirementsProceedingConfig {
-                    db_uri: root_config.db_uri.clone(),
-                    db_name: root_config.db_name.clone(),
+                    db_uri: config
+                        .db_uri
+                        .ok_or(anyhow!("No database is configured for service"))?,
+                    db_name: config
+                        .db_name
+                        .ok_or(anyhow!("No database is configured for service"))?,
                     rpc_hostname: config.rpc_hostname,
                     requirements_config: config.requirements_config,
                     network: config.network,
@@ -146,10 +178,5 @@ async fn main() -> Result<()> {
         }
     }
 
-    start_rest_api(
-        root_config.rest_api,
-        &root_config.db_uri,
-        &root_config.db_name,
-    )
-    .await
+    start_rest_api(root_config.rest_api, db_scopes).await
 }

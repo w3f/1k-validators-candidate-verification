@@ -14,7 +14,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 const DOWNTIME_PROCESSOR_TIMEOUT: u64 = 60;
 const UNEXPECTED_EXIT_TIMEOUT: u64 = 30;
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Network {
     Polkadot,

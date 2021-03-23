@@ -1,6 +1,7 @@
 use crate::database::{MongoClient, Timetable};
 use crate::system::Network;
 use actix_web::{get, web, App, HttpResponse, HttpServer, ResponseError, Result};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RestApiConfig {
@@ -17,7 +18,7 @@ pub struct EndpointConfig {
 
 #[derive(Clone)]
 struct MongoState {
-    client: MongoClient,
+    scoped: HashMap<Network, MongoClient>,
 }
 
 #[derive(Debug, Clone, Serialize, thiserror::Error)]
@@ -53,7 +54,17 @@ async fn downtime(
     query: web::Query<DowntimeQuery>,
     state: web::Data<MongoState>,
 ) -> Result<web::Json<Vec<Timetable>>> {
-    let store = state.client.get_time_table_store_reader(&query.network);
+    let client = if let Some(scoped_client) = state.scoped.get(&query.network) {
+        scoped_client
+    } else {
+        error!(
+            "No database is configured for {} downtime tracking",
+            query.network.as_ref()
+        );
+        return Err(WebError::internal().into());
+    };
+
+    let store = client.get_time_table_store_reader(&query.network);
 
     let who = if let Some(name) = &query.name {
         Some(name.as_str())
@@ -70,12 +81,14 @@ async fn downtime(
 
 pub async fn start_rest_api(
     config: RestApiConfig,
-    db_uri: &str,
-    db_name: &str,
+    db_scopes: Vec<(Network, String, String)>,
 ) -> std::result::Result<(), anyhow::Error> {
-    let state = MongoState {
-        client: MongoClient::new(db_uri, db_name).await?,
-    };
+    let mut scoped = HashMap::new();
+    for (network, db_uri, db_name) in db_scopes {
+        scoped.insert(network, MongoClient::new(&db_uri, &db_name).await?);
+    }
+
+    let state = MongoState { scoped: scoped };
 
     let listen_addr = config.listen_addr;
     let port = config.port;

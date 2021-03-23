@@ -4,7 +4,7 @@ use crate::{
     system::{Candidate, Network},
 };
 use crate::{Result, ToBson};
-use bson::from_document;
+use bson::{from_bson, from_document};
 use futures::StreamExt;
 use mongodb::options::UpdateOptions;
 use mongodb::{Client, Collection, Database};
@@ -143,6 +143,7 @@ impl MongoClient {
         network: &Network,
     ) -> TimetableStore {
         TimetableStore {
+            db: self.db.clone(),
             coll: self.db.collection(&format!(
                 "{}_{}",
                 TIMETABLE_STORE_COLLECTION,
@@ -155,6 +156,8 @@ impl MongoClient {
             )),
             name_lookup: HashMap::new(),
             config: config,
+            coll_whitelist: vec![],
+            last_whitelist_update: None,
         }
     }
     pub fn get_time_table_store_reader(&self, network: &Network) -> TimetableStoreReader {
@@ -264,10 +267,16 @@ impl CandidateStateStore {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TimetableStoreConfig {
-    pub whitelist: HashSet<NodeName>,
+    pub whitelist: WhiteList,
     pub threshold: i64,
     pub max_downtime: i64,
     pub monitoring_period: i64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum WhiteList {
+    List(HashSet<NodeName>),
+    Collection(String),
 }
 
 #[derive(Debug, Clone)]
@@ -350,10 +359,13 @@ async fn has_downtime_violation(
 
 #[derive(Debug, Clone)]
 pub struct TimetableStore {
+    db: Database,
     coll: Collection,
     coll_version_majority: Collection,
     name_lookup: HashMap<NodeId, NodeName>,
     config: TimetableStoreConfig,
+    coll_whitelist: Vec<NodeName>,
+    last_whitelist_update: Option<LogTimestamp>,
 }
 
 impl TimetableStore {
@@ -379,8 +391,59 @@ impl TimetableStore {
                 client_version = Some(event.details.version.clone());
 
                 // Only process whitelisted node names.
-                if !self.config.whitelist.contains(&node_name) {
-                    return Ok(());
+                match &self.config.whitelist {
+                    WhiteList::List(list) => {
+                        if !list.contains(&node_name) {
+                            return Ok(());
+                        }
+                    }
+                    WhiteList::Collection(collection) => {
+                        // Determine whether the whitelist should be updated
+                        let mut fetch_new = false;
+                        if let Some(tmstp) = self.last_whitelist_update {
+                            if tmstp < LogTimestamp::new() - LogTimestamp(60) {
+                                fetch_new = true;
+                            }
+                        } else {
+                            fetch_new = true;
+                        }
+
+                        // Update the whitelist
+                        if fetch_new {
+                            let mut cursor = self
+                                .db
+                                .collection(collection)
+                                .find(
+                                    doc! {
+                                        "name": {
+                                            "$exists": true,
+                                        }
+                                    },
+                                    None,
+                                )
+                                .await?;
+
+                            let mut coll_whitelist = vec![];
+                            while let Some(doc) = cursor.next().await {
+                                coll_whitelist.push(from_bson::<NodeName>(
+                                    doc?.get("name")
+                                        .ok_or(anyhow!(
+                                            "Field 'name' not found in candidate collection"
+                                        ))?
+                                        .clone(),
+                                )?);
+                            }
+
+                            // Update whitelist.
+                            self.coll_whitelist = coll_whitelist;
+                            self.last_whitelist_update = Some(LogTimestamp::new());
+                        }
+
+                        // Check whitelist
+                        if !self.coll_whitelist.contains(&node_name) {
+                            return Ok(());
+                        }
+                    }
                 }
 
                 // Find existing node name duplicates which will be pruned. This
@@ -793,9 +856,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_only_uptime() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
@@ -876,6 +941,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
         assert_eq!(punish, false);
         assert_eq!(downtime, 0);
 
@@ -892,9 +958,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_downtime_no_punish() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
@@ -968,9 +1036,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_downtime_do_punish() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 12,
             max_downtime: 50,
             monitoring_period: 100,
@@ -1050,9 +1120,11 @@ mod tests {
     #[tokio::test]
     async fn track_event_downtime_reset_period() {
         let config = TimetableStoreConfig {
-            whitelist: vec![NodeName::alice(), NodeName::bob()]
-                .into_iter()
-                .collect(),
+            whitelist: WhiteList::List(
+                vec![NodeName::alice(), NodeName::bob()]
+                    .into_iter()
+                    .collect(),
+            ),
             threshold: 22,
             max_downtime: 50,
             monitoring_period: 100,
@@ -1125,5 +1197,77 @@ mod tests {
         assert_eq!(downtime, 40);
 
         client.drop().await;
+    }
+
+    #[tokio::test]
+    async fn whitelist_from_collection() {
+        let config = TimetableStoreConfig {
+            whitelist: WhiteList::Collection("candidates".to_string()),
+            threshold: 22,
+            max_downtime: 50,
+            monitoring_period: 100,
+        };
+
+        // Create client.
+        let mut client = MongoClient::new(
+            "mongodb://localhost:27017/",
+            "test_whitelist_from_collection",
+        )
+        .await
+        .unwrap()
+        .get_time_table_store(config, &Network::Polkadot);
+
+        let candidates_collection = client.db.collection("candidates");
+
+        // Cleanup collection
+        candidates_collection.drop(None).await.unwrap();
+        client.drop().await;
+
+        let alice = Candidate::alice();
+        let bob = Candidate::bob();
+        let eve = Candidate::eve();
+
+        candidates_collection
+            .insert_many(
+                vec![
+                    doc! {
+                        "name": alice.node_name().to_bson().unwrap(),
+                        "other_data": "1234",
+                    },
+                    doc! {
+                        "name": bob.node_name().to_bson().unwrap(),
+                        "other_data": "4321",
+                    },
+                ],
+                None,
+            )
+            .await
+            .unwrap();
+
+        let events = [
+            TelemetryEvent::AddedNode(AddedNodeEvent::alice()),
+            TelemetryEvent::AddedNode(AddedNodeEvent::bob()),
+            // Non-whitelisted
+            TelemetryEvent::AddedNode(AddedNodeEvent::eve()),
+        ];
+
+        for event in &events {
+            client.track_event(event.clone()).await.unwrap();
+
+            client.process_time_tables().await.unwrap();
+        }
+
+        // Check tracked entries.
+        assert!(client
+            .has_downtime_violation(&alice)
+            .await
+            .unwrap()
+            .is_some());
+        assert!(client.has_downtime_violation(&bob).await.unwrap().is_some());
+        // Non-whitelisted
+        assert!(client.has_downtime_violation(&eve).await.unwrap().is_none());
+
+        client.drop().await;
+        candidates_collection.drop(None).await.unwrap();
     }
 }
