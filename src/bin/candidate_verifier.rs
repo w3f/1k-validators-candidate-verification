@@ -31,6 +31,8 @@ enum ServiceType {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 struct TelemetryTrackerConfig {
+    db_uri: Option<String>,
+    db_name: Option<String>,
     telemetry_host: String,
     network: Network,
     store_behavior: RawStoreBehavior,
@@ -101,8 +103,9 @@ async fn main() -> Result<()> {
         match service {
             ServiceType::TelemetryWatcher(config) => {
                 let specialized = TelemetryWatcherConfig {
-                    db_uri: root_config.db_uri.clone(),
-                    db_name: root_config.db_name.clone(),
+                    // Check for custom db configuration or use the global settings.
+                    db_uri: config.db_uri.unwrap_or(root_config.db_uri.clone()),
+                    db_name: config.db_name.unwrap_or(root_config.db_name.clone()),
                     telemetry_host: config.telemetry_host.clone(),
                     network: config.network,
                     store_behavior: config
