@@ -8,7 +8,7 @@ extern crate serde;
 use lib::{
     read_candidates, run_requirements_proceeding, run_telemetry_watcher, start_rest_api, Network,
     RequirementsConfig, RequirementsProceedingConfig, RestApiConfig, Result, StoreBehavior,
-    TelemetryWatcherConfig, TimetableStoreConfig,
+    TelemetryWatcherConfig, TimetableStoreConfig, WhiteList,
 };
 use std::fs::read_to_string;
 
@@ -51,10 +51,19 @@ impl RawStoreBehavior {
             RawStoreBehavior::Store => StoreBehavior::Store,
             RawStoreBehavior::DowntimeCounter(config) => StoreBehavior::Counter({
                 TimetableStoreConfig {
-                    whitelist: read_candidates(&config.candidate_file, network)?
-                        .into_iter()
-                        .map(|c| c.node_name().clone())
-                        .collect(),
+                    whitelist: {
+                        match config.candidate_source {
+                            CandidateSource::CandidateFile(file) => WhiteList::List(
+                                read_candidates(&file, network)?
+                                    .into_iter()
+                                    .map(|c| c.node_name().clone())
+                                    .collect(),
+                            ),
+                            CandidateSource::CandidateCollection(collection) => {
+                                unimplemented!()
+                            }
+                        }
+                    },
                     threshold: config.threshold,
                     max_downtime: config.max_downtime,
                     monitoring_period: config.monitoring_period,
@@ -70,7 +79,15 @@ struct RawCounterConfig {
     threshold: i64,
     max_downtime: i64,
     monitoring_period: i64,
-    candidate_file: String,
+    #[serde(flatten)]
+    candidate_source: CandidateSource,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum CandidateSource {
+    CandidateFile(String),
+    CandidateCollection(String),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -264,10 +264,16 @@ impl CandidateStateStore {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TimetableStoreConfig {
-    pub whitelist: HashSet<NodeName>,
+    pub whitelist: WhiteList,
     pub threshold: i64,
     pub max_downtime: i64,
     pub monitoring_period: i64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum WhiteList {
+    List(HashSet<NodeName>),
+    Collection(String),
 }
 
 #[derive(Debug, Clone)]
@@ -379,9 +385,11 @@ impl TimetableStore {
                 client_version = Some(event.details.version.clone());
 
                 // Only process whitelisted node names.
+                /* TODO
                 if !self.config.whitelist.contains(&node_name) {
                     return Ok(());
                 }
+                */
 
                 // Find existing node name duplicates which will be pruned. This
                 // might be slightly time consuming, but `AddedNode` events are

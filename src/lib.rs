@@ -20,7 +20,7 @@ mod system;
 
 // Re-exports
 pub use api::{start_rest_api, RestApiConfig};
-pub use database::TimetableStoreConfig;
+pub use database::{TimetableStoreConfig, WhiteList};
 pub use events::NodeName;
 pub use jury::RequirementsConfig;
 pub use system::{
