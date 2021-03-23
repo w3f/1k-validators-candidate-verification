@@ -60,7 +60,7 @@ impl RawStoreBehavior {
                                     .collect(),
                             ),
                             CandidateSource::CandidateCollection(collection) => {
-                                unimplemented!()
+                                WhiteList::Collection(collection)
                             }
                         }
                     },

@@ -432,6 +432,7 @@ impl TimetableStore {
 
                             // Update whitelist.
                             self.coll_whitelist = coll_whitelist;
+                            self.last_whitelist_update = Some(LogTimestamp::new());
                         }
 
                         // Check whitelist
