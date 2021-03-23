@@ -385,11 +385,16 @@ impl TimetableStore {
                 client_version = Some(event.details.version.clone());
 
                 // Only process whitelisted node names.
-                /* TODO
-                if !self.config.whitelist.contains(&node_name) {
-                    return Ok(());
+                match &self.config.whitelist {
+                    WhiteList::List(list) => {
+                        if !list.contains(&node_name) {
+                            return Ok(());
+                        }
+                    }
+                    WhiteList::Collection(collection) => {
+                        unimplemented!()
+                    }
                 }
-                */
 
                 // Find existing node name duplicates which will be pruned. This
                 // might be slightly time consuming, but `AddedNode` events are
