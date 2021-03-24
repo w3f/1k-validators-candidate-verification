@@ -17,8 +17,6 @@ certificate:
 
 config: |
   {
-  "db_uri": "mongodb://username:password@otv-candidate-verifier-mongodb-0.otv-candidate-verifier-mongodb-headless:27017/otv",
-  "db_name": "otv",
   "rest_api": {
     "listen_addr": "localhost",
     "port": 8080,
@@ -30,6 +28,8 @@ config: |
   "services": [
     {
       "telemetry_watcher": {
+        "db_uri": "mongodb://username:password@otv-candidate-verifier-mongodb-0.otv-candidate-verifier-mongodb-headless:27017/otv",
+        "db_name": "otv",
         "telemetry_host": "wss://telemetry-backend.w3f.community/feed",
         "network": "polkadot",
         "store_behavior": {
@@ -45,6 +45,8 @@ config: |
     },
     {
       "telemetry_watcher": {
+        "db_uri": "mongodb://username:password@otv-candidate-verifier-mongodb-0.otv-candidate-verifier-mongodb-headless:27017/otv",
+        "db_name": "otv",
         "telemetry_host": "wss://telemetry-backend.w3f.community/feed",
         "network": "kusama",
         "store_behavior": {
