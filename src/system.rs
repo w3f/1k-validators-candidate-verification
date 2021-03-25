@@ -5,9 +5,10 @@ use crate::{jury::RequirementsConfig, Result};
 use futures::{SinkExt, StreamExt};
 use std::fs::read_to_string;
 use std::str::FromStr;
+use std::sync::Arc;
 use substrate_subxt::sp_core::crypto::Ss58Codec;
 use substrate_subxt::{DefaultNodeRuntime, KusamaRuntime};
-use tokio::time::{self, Duration};
+use tokio::{sync::RwLock, time::{self, Duration}};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -122,6 +123,8 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 )
             })?;
 
+        let should_exit = Arc::new(RwLock::new(false));
+
         match &config.store_behavior {
             StoreBehavior::Counter(track_config) => {
                 info!(
@@ -133,6 +136,7 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 let processor = client.get_time_table_store(track_config.clone(), &config.network);
                 time_table_store = Some(processor.clone());
                 let network = config.network;
+                let should_exit = Arc::clone(&should_exit);
 
                 tokio::spawn(async move {
                     async fn local(processor: &TimetableStore, network: &Network) -> Result<()> {
@@ -191,9 +195,9 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                         err,
                         network.as_ref()
                     );
-                });
 
-                // TODO: If the downtime processor exits, the full application should exit.
+                    *should_exit.write().await = true;
+                });
             }
             _ => {}
         }
@@ -201,6 +205,10 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
         info!("Starting event loop ({})", config.network.as_ref());
 
         while let Some(msg) = stream.next().await {
+            if *should_exit.read().await {
+                return Err(anyhow!("Downtime processor stopped unexpectedly"))
+            }
+
             match msg? {
                 Message::Binary(content) => {
                     if let Ok(events) = TelemetryEvent::from_json(&content) {
@@ -244,11 +252,10 @@ pub async fn run_telemetry_watcher(config: TelemetryWatcherConfig) -> Result<()>
                 Ok(_) => info!("Telemetry connection dropped, restarting..."),
                 Err(err) => {
                     error!(
-                        "Telemetry watcher exited unexpectedly, restarting in {} seconds; {:?}",
+                        "Telemetry watcher exited unexpectedly, restarting in {} seconds: {:?}",
                         UNEXPECTED_EXIT_TIMEOUT, err
                     );
                     time::sleep(Duration::from_secs(UNEXPECTED_EXIT_TIMEOUT)).await;
-                    break;
                 }
             }
         }
