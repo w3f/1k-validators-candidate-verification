@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const CANDIDATE_STATE_STORE_COLLECTION: &'static str = "candidate_judgement_states";
 const TELEMETRY_EVENT_STORE_COLLECTION: &'static str = "telemetry_events";
-const TIMETABLE_STORE_COLLECTION: &'static str = "time_tables";
+const TIMETABLE_STORE_COLLECTION: &'static str = "downtime";
 const ERA_TRACKER_STORE: &'static str = "era_tracker";
 const VERSION_MAJORITY_COLLECTION: &'static str = "version_majority";
 
