@@ -386,6 +386,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn telemetry() {
+        env_logger::init();
         let (mut stream, _) = connect_async("wss://telemetry-backend.w3f.community/feed")
             .await
             .unwrap();
@@ -407,7 +408,7 @@ mod tests {
                             println!("\n\n{}", serde_json::to_string(&event).unwrap());
                         }
                     } else {
-                        error!("Failed to deserialize telemetry event");
+                        println!("Failed to deserialize telemetry event");
                     }
                 }
                 _ => {}

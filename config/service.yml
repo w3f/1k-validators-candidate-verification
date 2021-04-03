@@ -3,37 +3,16 @@ rest_api:
   port: 8080
   endpoints:
     health: true
-    downtime: true
+    downtime: false
 services:
-  - telemetry_watcher:
-      db_uri: "mongodb://localhost:27017/"
-      db_name: "otv"
+  - validator_monitor:
       telemetry_host: "wss://telemetry-backend.w3f.community/feed"
       network: "polkadot"
+      rpc_hosts:
+        # Specify multiple (fallback) hosts in case one cannot be reached.
+        # Prioritized by order.
+        - "wss://rpc.polkadot.io"
+        - "wss://cc1-1.polkadot.network"
+      grace_period: 300
       store_behavior:
-        type: downtime_counter
-        config:
-          # 3 minutes of absence before it starts increasing the downtime counter
-          threshold: 180
-          # 1 hour of allowed downtime per monitoring period.
-          max_downtime: 3600
-          # 1 week monitoring period. Downtime counter resets after that.
-          monitoring_period: 604800
-          # Monitoring whitelist
-          candidate_file: "config/polkadot_candidates.yml"
-  - telemetry_watcher:
-      db_uri: "mongodb://localhost:27017/"
-      db_name: "otv"
-      telemetry_host: "wss://telemetry-backend.w3f.community/feed"
-      network: "kusama"
-      store_behavior:
-        type: downtime_counter
-        config:
-          # 3 minutes of absence before it starts increasing the downtime counter
-          threshold: 180
-          # 1 hour of allowed downtime per monitoring period.
-          max_downtime: 3600
-          # 1 week monitoring period. Downtime counter resets after that.
-          monitoring_period: 604800
-          # Monitoring whitelist
-          candidate_file: "config/kusama_candidates.yml"
+      candidate_file: "config/polkadot_candidates.yml"
